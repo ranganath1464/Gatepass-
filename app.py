@@ -46,8 +46,8 @@ def login():
     error = None
     if request.method == 'POST':
         role = request.form['role']
-        email = request.form['email']
-        password = request.form['password']
+        email = request.form['email'].strip()
+        password = request.form['password'].strip()
         table = 'students' if role == 'student' else 'faculty'
 
         conn = get_connection()
@@ -56,6 +56,10 @@ def login():
         user = cur.fetchone()
         cur.close()
         conn.close()
+
+        if user:
+            print("DB password:", user['password'])
+            print("Entered password:", password)
 
         if user and user['password'] == password:
             session['email'] = email
