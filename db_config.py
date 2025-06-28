@@ -7,6 +7,6 @@ def get_connection():
         host="ep-orange-lab-a5vjihxa-pooler.us-east-2.aws.neon.tech",
         database="neondb",
         user="neondb_owner",
-        password="npg_MN8fpYk0qDKr",
+        password="npg_6nyu9ixbdMOf",
         sslmode='require'
     )
