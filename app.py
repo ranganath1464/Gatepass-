@@ -5,36 +5,16 @@ from datetime import datetime
 import smtplib, ssl
 import random
 import os
-import qrcode
-from io import BytesIO
-from base64 import b64encode
 
 app = Flask(__name__)
 app.secret_key = "supersecretkey"
 
 # ---------------- EMAIL UTILITY ----------------
-def send_email_with_qr(receiver_email, subject, body_text, qr_data_url):
+def send_email(receiver_email, subject, body):
     sender_email = os.environ.get("EMAIL_USER")
     app_password = os.environ.get("EMAIL_PASSWORD")
 
-    # Generate QR code
-    qr_img = qrcode.make(qr_data_url)
-    buffered = BytesIO()
-    qr_img.save(buffered, format="PNG")
-    img_str = b64encode(buffered.getvalue()).decode()
-
-    html_body = f"""
-    <html>
-    <body>
-        <p>{body_text}</p>
-        <p><b>Scan QR Code to check your gatepass status:</b></p>
-        <img src="data:image/png;base64,{img_str}" alt="QR Code" />
-    </body>
-    </html>
-    """
-
-    message = f"Subject: {subject}\nContent-Type: text/html\n\n{html_body}"
-
+    message = f"Subject: {subject}\n\n{body}"
     context = ssl.create_default_context()
     with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
         server.login(sender_email, app_password)
@@ -264,14 +244,20 @@ def faculty_approve(req_id):
 
         subject = f"Gatepass Request {status.capitalize()} - Gatepass System"
         body = f"""
-Dear {data['name']},<br><br>
-Your gatepass request submitted on {data['request_date'].strftime('%Y-%m-%d %H:%M')} has been <b>{status.upper()}</b>.<br>
-Faculty Remark: {remark}<br><br>
-Check your status here:<br>
+Dear {data['name']},
+
+Your gatepass request submitted on {data['request_date'].strftime('%Y-%m-%d %H:%M')} has been {status.upper()}.
+
+Faculty Remark: {remark}
+
+You can check status here:
+https://gatepass-system-gmz7.onrender.com/student/dashboard
+
+Regards,
+Gatepass System
         """
-        status_url = f"https://gatepass-system-gmz7.onrender.com/status/{req_id}"
         try:
-            send_email_with_qr(data['email'], subject, body, status_url)
+            send_email(data['email'], subject, body)
         except Exception as e:
             flash("Request updated, but failed to notify student: " + str(e))
 
@@ -280,26 +266,6 @@ Check your status here:<br>
     flash(f"Request {status} successfully.")
     return redirect(url_for('faculty_dashboard'))
 
-# ---------------- STATUS PAGE ----------------
-@app.route('/status/<int:req_id>')
-def show_status(req_id):
-    conn = get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute("""
-        SELECT gr.status, gr.request_date, s.name
-        FROM gatepass_requests gr
-        JOIN students s ON gr.student_id = s.student_id
-        WHERE gr.id = %s
-    """, (req_id,))
-    data = cur.fetchone()
-    cur.close()
-    conn.close()
-
-    if not data:
-        return "Invalid or expired link."
-
-    return render_template("status_view.html", status=data['status'], name=data['name'], date=data['request_date'])
-
 # ---------------- LOGOUT ----------------
 @app.route('/logout')
 def logout():
@@ -307,4 +273,4 @@ def logout():
     return redirect(url_for('login'))
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True)  
