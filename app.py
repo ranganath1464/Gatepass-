@@ -5,23 +5,16 @@ from datetime import datetime
 import smtplib, ssl
 import random
 import os
-from io import BytesIO
-from base64 import b64encode
-import qrcode
-import pytz
 
 app = Flask(__name__)
 app.secret_key = "supersecretkey"
 
 # ---------------- EMAIL UTILITY ----------------
-def send_email(receiver_email, subject, body, html=False):
+def send_email(receiver_email, subject, body):
     sender_email = os.environ.get("EMAIL_USER")
     app_password = os.environ.get("EMAIL_PASSWORD")
 
-    message = f"Subject: {subject}\n"
-    message += "Content-Type: text/html\n\n" if html else "\n"
-    message += body
-
+    message = f"Subject: {subject}\n\n{body}"
     context = ssl.create_default_context()
     with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
         server.login(sender_email, app_password)
@@ -249,33 +242,22 @@ def faculty_approve(req_id):
         """, (status, remark, req_id))
         conn.commit()
 
-        ist = pytz.timezone("Asia/Kolkata")
-        ist_time = data['request_date'].astimezone(ist)
-        formatted_time = ist_time.strftime('%Y-%m-%d %H:%M')
-
-        status_url = f"https://gatepass-system-gmz7.onrender.com/status/{req_id}"
-        qr_img = qrcode.make(status_url)
-        buffer = BytesIO()
-        qr_img.save(buffer, format="PNG")
-        qr_base64 = b64encode(buffer.getvalue()).decode()
-
         subject = f"Gatepass Request {status.capitalize()} - Gatepass System"
         body = f"""
-<html>
-<body>
-<p>Dear {data['name']},</p>
-<p>Your gatepass request submitted on <b>{formatted_time}</b> has been <b>{status.upper()}</b>.</p>
-<p><b>Faculty Remark:</b> {remark}</p>
-<p>You can also scan the QR below to check the status:</p>
-<img src="data:image/png;base64,{qr_base64}" alt="QR Code" />
-<br><br>
-<p>Or click here: <a href="{status_url}">{status_url}</a></p>
-<p>Regards,<br>Gatepass System</p>
-</body>
-</html>
-    
+Dear {data['name']},
+
+Your gatepass request submitted on {data['request_date'].strftime('%Y-%m-%d %H:%M')} has been {status.upper()}.
+
+Faculty Remark: {remark}
+
+You can check status here:
+https://gatepass-system-gmz7.onrender.com/student/dashboard
+
+Regards,
+Gatepass System
+        """
         try:
-            send_email(data['email'], subject, body, html=True)
+            send_email(data['email'], subject, body)
         except Exception as e:
             flash("Request updated, but failed to notify student: " + str(e))
 
@@ -291,4 +273,4 @@ def logout():
     return redirect(url_for('login'))
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True)  
