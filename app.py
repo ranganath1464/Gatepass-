@@ -10,8 +10,8 @@ app.secret_key = "supersecretkey"
 
 # ---------------- EMAIL OTP UTILITY ----------------
 def send_otp_email(receiver_email, otp):
-    sender_email = "your_email@gmail.com"
-    app_password = "your_app_password"  # Replace with your Gmail App Password
+    sender_email = "your_email@gmail.com"         # Replace with your Gmail
+    app_password = "your_app_password"            # Replace with your App Password
     
     subject = "Your OTP Verification Code"
     body = f"Your OTP is: {otp}"
@@ -39,7 +39,6 @@ def register():
         password = request.form['password']
         student_id = request.form.get('student_id') or None
 
-        # Generate and send OTP
         otp = str(random.randint(100000, 999999))
         session['otp'] = otp
         session['pending_user'] = {
@@ -57,6 +56,7 @@ def register():
             return redirect(url_for('verify_otp'))
         except Exception as e:
             flash(f"Failed to send OTP: {e}")
+            print("Error sending email:", e)
 
     return render_template("register.html", branches=branches)
 
@@ -79,13 +79,12 @@ def verify_otp():
                 return redirect(url_for('login'))
             except Exception as e:
                 conn.rollback()
-                flash("Error saving to database: " + str(e))
+                flash("Database error: " + str(e))
             finally:
                 cur.close()
                 conn.close()
         else:
             flash("Invalid OTP. Please try again.")
-
     return render_template("verify_otp.html")
 
 # ---------------- LOGIN ----------------
