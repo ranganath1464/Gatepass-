@@ -2,7 +2,6 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from db_config import get_connection
 import psycopg2.extras
 from datetime import datetime
-import pytz
 import smtplib, ssl
 import random
 import os
@@ -125,8 +124,7 @@ def student_dashboard():
     student = cur.fetchone()
 
     cur.execute("""
-        SELECT *, request_date AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata' AS ist_date
-        FROM gatepass_requests
+        SELECT * FROM gatepass_requests
         WHERE student_id=%s
         ORDER BY request_date DESC
     """, (student['student_id'],))
@@ -150,7 +148,7 @@ def student_gatepass():
 
     if request.method == 'POST':
         reason = request.form['reason']
-        request_date = datetime.now(pytz.timezone("Asia/Kolkata"))
+        request_date = datetime.now()
 
         cur.execute("""
             INSERT INTO gatepass_requests (student_id, reason, status, request_date)
@@ -205,7 +203,7 @@ def faculty_dashboard():
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cur.execute("""
         SELECT gr.id, gr.student_id, s.name, s.branch, gr.reason,
-               gr.status, gr.faculty_remark, gr.request_date AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata' AS ist_date
+               gr.status, gr.faculty_remark, gr.request_date
         FROM gatepass_requests gr
         JOIN students s ON gr.student_id = s.student_id
         WHERE s.branch = %s
@@ -244,12 +242,11 @@ def faculty_approve(req_id):
         """, (status, remark, req_id))
         conn.commit()
 
-        ist_time = data['request_date'].astimezone(pytz.timezone("Asia/Kolkata"))
         subject = f"Gatepass Request {status.capitalize()} - Gatepass System"
         body = f"""
 Dear {data['name']},
 
-Your gatepass request submitted on {ist_time.strftime('%Y-%m-%d %H:%M')} has been {status.upper()}.
+Your gatepass request submitted on {data['request_date'].strftime('%Y-%m-%d %H:%M')} has been {status.upper()}.
 
 Faculty Remark: {remark}
 
@@ -276,5 +273,4 @@ def logout():
     return redirect(url_for('login'))
 
 if __name__ == '__main__':
-    app.run(debug=True)
-
+    app.run(debug=True) 
