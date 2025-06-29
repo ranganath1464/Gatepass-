@@ -113,6 +113,7 @@ def login():
     return render_template("login.html", error=error)
 
 # ---------------- STUDENT DASHBOARD ----------------
+# ---------------- STUDENT DASHBOARD ----------------
 @app.route('/student/dashboard')
 def student_dashboard():
     if session.get('role') != 'student':
@@ -133,7 +134,14 @@ def student_dashboard():
     cur.close()
     conn.close()
 
+    # 🔁 Convert request_date to IST timezone
+    ist = pytz.timezone('Asia/Kolkata')
+    for req in requests:
+        if isinstance(req['request_date'], datetime):
+            req['request_date'] = req['request_date'].astimezone(ist)
+
     return render_template("student_dashboard.html", student=student, requests=requests)
+
 
 # ---------------- GATEPASS REQUEST ----------------
 @app.route('/student/gatepass', methods=['GET', 'POST'])
