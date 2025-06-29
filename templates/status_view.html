@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Status</title>
+  <style>
+    body {
+      background-color: {{ 'green' if status == 'Approved' else 'red' }};
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      font-family: Arial, sans-serif;
+    }
+    h1 {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+    }
+    p {
+      font-size: 2rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>{{ status.upper() }}</h1>
+  <p>Name: {{ name }}</p>
+  <p>{{ date.strftime('%Y-%m-%d %H:%M') }}</p>
+</body>
+</html>
