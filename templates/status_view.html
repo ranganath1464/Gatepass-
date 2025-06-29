@@ -1,30 +1,39 @@
+<!-- templates/status_view.html -->
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Status</title>
-  <style>
-    body {
-      background-color: {{ 'green' if status == 'Approved' else 'red' }};
-      color: white;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-      font-family: Arial, sans-serif;
-    }
-    h1 {
-      font-size: 4rem;
-      margin-bottom: 1rem;
-    }
-    p {
-      font-size: 2rem;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <title>Gatepass Status</title>
+    <style>
+        body {
+            margin: 0;
+            height: 100vh;
+            background-color: {{ 'green' if status.upper() == 'APPROVED' else 'red' }};
+            color: white;
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            flex-direction: column;
+        }
+        h1 {
+            font-size: 60px;
+            margin: 20px;
+        }
+        h2 {
+            font-size: 40px;
+            margin: 10px;
+        }
+        h3 {
+            font-size: 30px;
+            margin: 5px;
+        }
+    </style>
 </head>
 <body>
-  <h1>{{ status.upper() }}</h1>
-  <p>Name: {{ name }}</p>
-  <p>{{ date.strftime('%Y-%m-%d %H:%M') }}</p>
+    <h1>{{ status.upper() }}</h1>
+    <h2>{{ name }}</h2>
+    <h3>{{ date.strftime('%Y-%m-%d %H:%M') }}</h3>
 </body>
 </html>
