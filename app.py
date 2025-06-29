@@ -2,10 +2,27 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from db_config import get_connection
 import psycopg2.extras
 from datetime import datetime
+import smtplib, ssl
+import random
 
 app = Flask(__name__)
 app.secret_key = "supersecretkey"
 
+# ---------------- EMAIL OTP UTILITY ----------------
+def send_otp_email(receiver_email, otp):
+    sender_email = "your_email@gmail.com"
+    app_password = "your_app_password"  # Replace with your Gmail App Password
+    
+    subject = "Your OTP Verification Code"
+    body = f"Your OTP is: {otp}"
+    message = f"Subject: {subject}\n\n{body}"
+
+    context = ssl.create_default_context()
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
+        server.login(sender_email, app_password)
+        server.sendmail(sender_email, receiver_email, message)
+
+# ---------------- HOME ----------------
 @app.route('/')
 def home():
     return redirect(url_for('login'))
@@ -22,23 +39,54 @@ def register():
         password = request.form['password']
         student_id = request.form.get('student_id') or None
 
-        conn = get_connection()
-        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        # Generate and send OTP
+        otp = str(random.randint(100000, 999999))
+        session['otp'] = otp
+        session['pending_user'] = {
+            'name': name,
+            'branch': branch,
+            'email': email,
+            'mobile': mobile,
+            'password': password,
+            'student_id': student_id
+        }
+
         try:
-            cur.execute("""
-                INSERT INTO students (name, student_id, branch, email, mobile, password)
-                VALUES (%s, %s, %s, %s, %s, %s)
-            """, (name, student_id, branch, email, mobile, password))
-            conn.commit()
-            flash("Registration successful! Please login.")
-            return redirect(url_for('login'))
+            send_otp_email(email, otp)
+            flash("OTP sent to your email. Please verify.")
+            return redirect(url_for('verify_otp'))
         except Exception as e:
-            conn.rollback()
-            flash("Error during registration: " + str(e))
-        finally:
-            cur.close()
-            conn.close()
+            flash(f"Failed to send OTP: {e}")
+
     return render_template("register.html", branches=branches)
+
+# ---------------- VERIFY OTP ----------------
+@app.route('/verify-otp', methods=['GET', 'POST'])
+def verify_otp():
+    if request.method == 'POST':
+        entered_otp = request.form['otp']
+        if entered_otp == session.get('otp'):
+            user = session.get('pending_user')
+            conn = get_connection()
+            cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            try:
+                cur.execute("""
+                    INSERT INTO students (name, student_id, branch, email, mobile, password)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (user['name'], user['student_id'], user['branch'], user['email'], user['mobile'], user['password']))
+                conn.commit()
+                flash("Registration successful! Please login.")
+                return redirect(url_for('login'))
+            except Exception as e:
+                conn.rollback()
+                flash("Error saving to database: " + str(e))
+            finally:
+                cur.close()
+                conn.close()
+        else:
+            flash("Invalid OTP. Please try again.")
+
+    return render_template("verify_otp.html")
 
 # ---------------- LOGIN ----------------
 @app.route('/login', methods=['GET', 'POST'])
@@ -56,10 +104,6 @@ def login():
         user = cur.fetchone()
         cur.close()
         conn.close()
-
-        if user:
-            print("DB password:", user['password'])
-            print("Entered password:", password)
 
         if user and user['password'] == password:
             session['email'] = email
