@@ -4,10 +4,40 @@
     <meta charset="UTF-8">
     <title>Verify OTP</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f5f5;
+        }
+        .container {
+            width: 400px;
+            margin: 80px auto;
+            padding: 30px;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h2 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        input, button {
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+        }
+        .flashes {
+            color: red;
+            margin-bottom: 10px;
+            list-style: none;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
-        <h2>OTP Verification</h2>
+        <h2>Verify OTP</h2>
         {% with messages = get_flashed_messages() %}
           {% if messages %}
             <ul class="flashes">
@@ -17,10 +47,9 @@
             </ul>
           {% endif %}
         {% endwith %}
-
         <form method="POST">
-            <label for="otp">Enter OTP sent to your email:</label>
-            <input type="text" name="otp" id="otp" required>
+            <label>Enter OTP sent to your email:</label>
+            <input type="text" name="otp" required placeholder="e.g. 123456">
             <button type="submit">Verify</button>
         </form>
     </div>
