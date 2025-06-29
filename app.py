@@ -5,16 +5,23 @@ from datetime import datetime
 import smtplib, ssl
 import random
 import os
+from io import BytesIO
+from base64 import b64encode
+import qrcode
+import pytz
 
 app = Flask(__name__)
 app.secret_key = "supersecretkey"
 
 # ---------------- EMAIL UTILITY ----------------
-def send_email(receiver_email, subject, body):
+def send_email(receiver_email, subject, body, html=False):
     sender_email = os.environ.get("EMAIL_USER")
     app_password = os.environ.get("EMAIL_PASSWORD")
 
-    message = f"Subject: {subject}\n\n{body}"
+    message = f"Subject: {subject}\n"
+    message += "Content-Type: text/html\n\n" if html else "\n"
+    message += body
+
     context = ssl.create_default_context()
     with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
         server.login(sender_email, app_password)
@@ -215,12 +222,7 @@ def faculty_dashboard():
 
     return render_template("faculty_dashboard.html", requests=requests)
 
-from io import BytesIO
-from base64 import b64encode
-import qrcode
-import pytz
-
-# ---------------- APPROVE/REJECT WITH QR & IST ----------------
+# ---------------- APPROVE/REJECT ----------------
 @app.route('/faculty/approve/<int:req_id>', methods=['POST'])
 def faculty_approve(req_id):
     if session.get('role') != 'faculty':
@@ -247,12 +249,10 @@ def faculty_approve(req_id):
         """, (status, remark, req_id))
         conn.commit()
 
-        # Convert to IST
         ist = pytz.timezone("Asia/Kolkata")
         ist_time = data['request_date'].astimezone(ist)
         formatted_time = ist_time.strftime('%Y-%m-%d %H:%M')
 
-        # QR Code for status page
         status_url = f"https://gatepass-system-gmz7.onrender.com/status/{req_id}"
         qr_img = qrcode.make(status_url)
         buffer = BytesIO()
@@ -273,18 +273,9 @@ def faculty_approve(req_id):
 <p>Regards,<br>Gatepass System</p>
 </body>
 </html>
-"""
-
+    
         try:
-            sender_email = os.environ.get("EMAIL_USER")
-            app_password = os.environ.get("EMAIL_PASSWORD")
-
-            email_message = f"Subject: {subject}\nContent-Type: text/html\n\n{body}"
-
-            context = ssl.create_default_context()
-            with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
-                server.login(sender_email, app_password)
-                server.sendmail(sender_email, data['email'], email_message)
+            send_email(data['email'], subject, body, html=True)
         except Exception as e:
             flash("Request updated, but failed to notify student: " + str(e))
 
@@ -300,4 +291,4 @@ def logout():
     return redirect(url_for('login'))
 
 if __name__ == '__main__':
-    app.run(debug=True)  
+    app.run(debug=True)
