@@ -5,6 +5,7 @@ from datetime import datetime
 import smtplib, ssl
 import random
 import os
+import pytz
 
 app = Flask(__name__)
 app.secret_key = "supersecretkey"
@@ -148,7 +149,8 @@ def student_gatepass():
 
     if request.method == 'POST':
         reason = request.form['reason']
-        request_date = datetime.now()
+        ist = pytz.timezone('Asia/Kolkata')
+        request_date = datetime.now(ist)
 
         cur.execute("""
             INSERT INTO gatepass_requests (student_id, reason, status, request_date)
@@ -242,11 +244,15 @@ def faculty_approve(req_id):
         """, (status, remark, req_id))
         conn.commit()
 
+        # Convert request time to IST
+        ist = pytz.timezone('Asia/Kolkata')
+        request_time_ist = data['request_date'].astimezone(ist).strftime('%Y-%m-%d %H:%M')
+
         subject = f"Gatepass Request {status.capitalize()} - Gatepass System"
         body = f"""
 Dear {data['name']},
 
-Your gatepass request submitted on {data['request_date'].strftime('%Y-%m-%d %H:%M')} has been {status.upper()}.
+Your gatepass request submitted on {request_time_ist} has been {status.upper()}.
 
 Faculty Remark: {remark}
 
