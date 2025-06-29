@@ -230,13 +230,53 @@ def faculty_approve(req_id):
     status = request.form['action']
     remark = request.form['remark']
     conn = get_connection()
-    cur = conn.cursor()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    # Get request + student info
+    cur.execute("""
+        SELECT gr.*, s.name, s.email, s.branch, s.student_id
+        FROM gatepass_requests gr
+        JOIN students s ON gr.student_id = s.student_id
+        WHERE gr.id = %s
+    """, (req_id,))
+    data = cur.fetchone()
+
+    if not data:
+        flash("Invalid request ID.")
+        return redirect(url_for('faculty_dashboard'))
+
+    # Update the status and remark
     cur.execute("""
         UPDATE gatepass_requests
         SET status=%s, faculty_remark=%s
         WHERE id=%s
     """, (status, remark, req_id))
     conn.commit()
+
+    # Send email to student
+    student_email = data['email']
+    student_name = data['name']
+    request_date = data['request_date'].strftime('%Y-%m-%d %H:%M')
+
+    subject = f"Gatepass Request {status}"
+    message = f"""
+Dear {student_name},
+
+Your gatepass request submitted on {request_date} has been {status.upper()}.
+
+Faculty Remark: {remark}
+
+You can log in to your dashboard to view more details:
+https://gatepass-system-gmz7.onrender.com/student/dashboard
+
+Regards,  
+Gatepass System
+"""
+    try:
+        send_otp_email(student_email, message, subject)
+    except Exception as e:
+        flash("Status updated, but failed to notify student: " + str(e))
+
     cur.close()
     conn.close()
 
