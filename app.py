@@ -4,15 +4,16 @@ import psycopg2.extras
 from datetime import datetime
 import smtplib, ssl
 import random
+import os
 
 app = Flask(__name__)
 app.secret_key = "supersecretkey"
 
 # ---------------- EMAIL OTP UTILITY ----------------
 def send_otp_email(receiver_email, otp):
-    sender_email = "your_email@gmail.com"         # Replace with your Gmail
-    app_password = "your_app_password"            # Replace with your App Password
-    
+    sender_email = os.environ.get("EMAIL_USER")
+    app_password = os.environ.get("EMAIL_PASSWORD")
+
     subject = "Your OTP Verification Code"
     body = f"Your OTP is: {otp}"
     message = f"Subject: {subject}\n\n{body}"
@@ -22,7 +23,6 @@ def send_otp_email(receiver_email, otp):
         server.login(sender_email, app_password)
         server.sendmail(sender_email, receiver_email, message)
 
-# ---------------- HOME ----------------
 @app.route('/')
 def home():
     return redirect(url_for('login'))
@@ -56,7 +56,6 @@ def register():
             return redirect(url_for('verify_otp'))
         except Exception as e:
             flash(f"Failed to send OTP: {e}")
-            print("Error sending email:", e)
 
     return render_template("register.html", branches=branches)
 
@@ -79,12 +78,13 @@ def verify_otp():
                 return redirect(url_for('login'))
             except Exception as e:
                 conn.rollback()
-                flash("Database error: " + str(e))
+                flash("Error saving to database: " + str(e))
             finally:
                 cur.close()
                 conn.close()
         else:
             flash("Invalid OTP. Please try again.")
+
     return render_template("verify_otp.html")
 
 # ---------------- LOGIN ----------------
