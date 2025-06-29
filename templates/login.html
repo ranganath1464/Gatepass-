@@ -71,6 +71,21 @@
 
     input:focus, select:focus { border-color: #0047AB; }
 
+    .password-wrapper {
+      position: relative;
+    }
+
+    .toggle-password {
+      position: absolute;
+      right: 15px;
+      top: 50%;
+      transform: translateY(-50%);
+      cursor: pointer;
+      font-size: 18px;
+      color: #555;
+      user-select: none;
+    }
+
     .btn {
       background: #0047AB;
       color: white;
@@ -116,7 +131,7 @@
 
   <div class="header">
     <div class="header-content">
-      <img src="{{ url_for('static', filename="logo.jpg") }}" alt="College Logo">
+      <img src="{{ url_for('static', filename='logo.png') }}" alt="College Logo">
       <div class="header_text">
         <h1>St. JOHNS COLLEGE OF ENGINEERING & TECHNOLOGY</h1>
         <h3>Yerrakota, YEMMIGANUR – Kurnool Dt., Andhra Pradesh</h3>
@@ -159,7 +174,10 @@
 
       <div class="form-group">
         <label for="password">Password</label>
-        <input type="password" name="password" required>
+        <div class="password-wrapper">
+          <input type="password" name="password" id="password" required>
+          <span class="toggle-password" id="togglePassword" onclick="togglePassword()">🐵</span>
+        </div>
       </div>
 
       <button type="submit" class="btn">Login</button>
@@ -169,6 +187,21 @@
       </div>
     </form>
   </div>
+
+  <script>
+    function togglePassword() {
+      const passwordInput = document.getElementById("password");
+      const toggleIcon = document.getElementById("togglePassword");
+
+      if (passwordInput.type === "password") {
+        passwordInput.type = "text";
+        toggleIcon.textContent = "🙈"; // eye with slash
+      } else {
+        passwordInput.type = "password";
+        toggleIcon.textContent = "🐵"; // eye
+      }
+    }
+  </script>
 
 </body>
 </html>
