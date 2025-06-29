@@ -9,15 +9,12 @@ import os
 app = Flask(__name__)
 app.secret_key = "supersecretkey"
 
-# ---------------- EMAIL OTP UTILITY ----------------
-def send_otp_email(receiver_email, otp):
+# ---------------- GENERAL EMAIL FUNCTION ----------------
+def send_email(receiver_email, subject, body):
     sender_email = os.environ.get("EMAIL_USER")
     app_password = os.environ.get("EMAIL_PASSWORD")
 
-    subject = "Your OTP Verification Code"
-    body = f"Your OTP is: {otp}"
     message = f"Subject: {subject}\n\n{body}"
-
     context = ssl.create_default_context()
     with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
         server.login(sender_email, app_password)
@@ -51,7 +48,7 @@ def register():
         }
 
         try:
-            send_otp_email(email, otp)
+            send_email(email, "Your OTP Verification Code", f"Your OTP is: {otp}")
             flash("OTP sent to your email. Please verify.")
             return redirect(url_for('verify_otp'))
         except Exception as e:
@@ -153,14 +150,12 @@ def student_gatepass():
         reason = request.form['reason']
         request_date = datetime.now()
 
-        # Insert gatepass request into database
         cur.execute("""
             INSERT INTO gatepass_requests (student_id, reason, status, request_date)
             VALUES (%s, %s, 'Pending', %s)
         """, (student['student_id'], reason, request_date))
         conn.commit()
 
-        # Get faculty email for this branch
         cur.execute("SELECT email FROM faculty WHERE branch=%s LIMIT 1", (student['branch'],))
         faculty = cur.fetchone()
 
@@ -178,14 +173,14 @@ A new gatepass request has been submitted:
 - Reason: {reason}
 - Date: {request_date.strftime('%Y-%m-%d %H:%M')}
 
-Please login to your dashboard to take action.
-https://gatepass-system-gmz7.onrender.com/login
+Please login to your dashboard to take action:
+https://gatepass-system-gmz7.onrender.com/faculty/dashboard
 
 Regards,  
 Gatepass System
             """
             try:
-                send_otp_email(faculty_email, message)  # Reusing your send email function
+                send_email(faculty_email, subject, message)
             except Exception as e:
                 flash("Gatepass submitted, but failed to notify faculty: " + str(e))
 
@@ -221,7 +216,7 @@ def faculty_dashboard():
 
     return render_template("faculty_dashboard.html", requests=requests)
 
-# ---------------- APPROVE/REJECT ----------------
+# ---------------- APPROVE / REJECT ----------------
 @app.route('/faculty/approve/<int:req_id>', methods=['POST'])
 def faculty_approve(req_id):
     if session.get('role') != 'faculty':
@@ -233,7 +228,6 @@ def faculty_approve(req_id):
     conn = get_connection()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-    # Get request and student info
     cur.execute("""
         SELECT gr.*, s.name, s.email, s.student_id
         FROM gatepass_requests gr
@@ -243,7 +237,6 @@ def faculty_approve(req_id):
     data = cur.fetchone()
 
     if data:
-        # Update the status and remark
         cur.execute("""
             UPDATE gatepass_requests
             SET status=%s, faculty_remark=%s
@@ -251,7 +244,6 @@ def faculty_approve(req_id):
         """, (status, remark, req_id))
         conn.commit()
 
-        # Prepare email to student
         subject = f"Gatepass Request {status.capitalize()} - Gatepass System"
         message = f"""
 Dear {data['name']},
@@ -260,26 +252,22 @@ Your gatepass request submitted on {data['request_date'].strftime('%Y-%m-%d %H:%
 
 Faculty Remark: {remark}
 
-➡️ You can check the updated status here:  
+➡️ Check your dashboard here:  
 https://gatepass-system-gmz7.onrender.com/student/dashboard
 
 Regards,  
 Gatepass System
-"""
-
-        # Send the email
+        """
         try:
-            send_otp_email(data['email'], message, subject)
+            send_email(data['email'], subject, message)
         except Exception as e:
-            print("Error sending email:", e)
-            flash("Request updated, but failed to notify student.")
+            print("Email error:", e)
+            flash("Status updated, but email to student failed.")
 
     cur.close()
     conn.close()
-
     flash(f"Request {status} successfully.")
     return redirect(url_for('faculty_dashboard'))
-
 
 # ---------------- LOGOUT ----------------
 @app.route('/logout')
@@ -288,4 +276,4 @@ def logout():
     return redirect(url_for('login'))
 
 if __name__ == '__main__':
-    app.run(debug=True) 
+    app.run(debug=True)
