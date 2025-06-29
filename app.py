@@ -151,12 +151,44 @@ def student_gatepass():
 
     if request.method == 'POST':
         reason = request.form['reason']
+        request_date = datetime.now()
+
+        # Insert gatepass request into database
         cur.execute("""
             INSERT INTO gatepass_requests (student_id, reason, status, request_date)
             VALUES (%s, %s, 'Pending', %s)
-        """, (student['student_id'], reason, datetime.now()))
+        """, (student['student_id'], reason, request_date))
         conn.commit()
-        flash("Gatepass request submitted.")
+
+        # Get faculty email for this branch
+        cur.execute("SELECT email FROM faculty WHERE branch=%s LIMIT 1", (student['branch'],))
+        faculty = cur.fetchone()
+
+        if faculty:
+            faculty_email = faculty['email']
+            subject = f"New Gatepass Request from {student['name']} ({student['student_id']})"
+            message = f"""
+Dear Faculty,
+
+A new gatepass request has been submitted:
+
+- Name: {student['name']}
+- Student ID: {student['student_id']}
+- Branch: {student['branch']}
+- Reason: {reason}
+- Date: {request_date.strftime('%Y-%m-%d %H:%M')}
+
+Please login to your dashboard to take action.
+
+Regards,  
+Gatepass System
+            """
+            try:
+                send_otp_email(faculty_email, message)  # Reusing your send email function
+            except Exception as e:
+                flash("Gatepass submitted, but failed to notify faculty: " + str(e))
+
+        flash("Gatepass request submitted and faculty notified.")
         cur.close()
         conn.close()
         return redirect(url_for('student_dashboard'))
