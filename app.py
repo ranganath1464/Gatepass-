@@ -152,38 +152,43 @@ def student_gatepass():
         reason = request.form['reason']
         request_date = datetime.now()
 
+        # Insert gatepass request into database
         cur.execute("""
             INSERT INTO gatepass_requests (student_id, reason, status, request_date)
             VALUES (%s, %s, 'Pending', %s)
         """, (student['student_id'], reason, request_date))
         conn.commit()
 
+        # Get faculty email for this branch
         cur.execute("SELECT email FROM faculty WHERE branch=%s LIMIT 1", (student['branch'],))
         faculty = cur.fetchone()
 
         if faculty:
             faculty_email = faculty['email']
-            faculty_link = "https://gatepass-system-gmz7.onrender.com/faculty/dashboard"
-            subject = f"New Gatepass Request from {student['name']} ({student['student_id']})"
+            faculty_branch = student['branch']
+            faculty_link = f"https://gatepass-system-gmz7.onrender.com/faculty/dashboard?branch={faculty_branch}"
+
+            subject = f"New Gatepass Request - {faculty_branch} Department"
             message = f"""
-Dear Faculty,
+Dear {faculty_branch} Faculty,
 
 A new gatepass request has been submitted:
 
-- Name: {student['name']}
-- Student ID: {student['student_id']}
-- Branch: {student['branch']}
-- Reason: {reason}
-- Date: {request_date.strftime('%Y-%m-%d %H:%M')}
+- Name       : {student['name']}
+- Student ID : {student['student_id']}
+- Branch     : {student['branch']}
+- Reason     : {reason}
+- Date       : {request_date.strftime('%Y-%m-%d %H:%M')}
 
-Click the link below to review and take action:
-{faculty_link}
+👉 Login to your dashboard: {faculty_link}
+
+(You must be logged in as a faculty member of {faculty_branch} to view this request.)
 
 Regards,  
 Gatepass System
 """
             try:
-                send_otp_email(faculty_email, message, subject)
+                send_otp_email(faculty_email, message, subject=subject)
             except Exception as e:
                 flash("Gatepass submitted, but failed to notify faculty: " + str(e))
 
@@ -196,28 +201,6 @@ Gatepass System
     conn.close()
     return render_template("gatepass_form.html", student=student)
 
-# ---------------- FACULTY DASHBOARD ----------------
-@app.route('/faculty/dashboard')
-def faculty_dashboard():
-    if session.get('role') != 'faculty':
-        return redirect(url_for('login'))
-
-    branch = session.get('branch')
-    conn = get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute("""
-        SELECT gr.id, gr.student_id, s.name, s.branch, gr.reason,
-               gr.status, gr.faculty_remark, gr.request_date
-        FROM gatepass_requests gr
-        JOIN students s ON gr.student_id = s.student_id
-        WHERE s.branch = %s
-        ORDER BY gr.request_date DESC
-    """, (branch,))
-    requests = cur.fetchall()
-    cur.close()
-    conn.close()
-
-    return render_template("faculty_dashboard.html", requests=requests)
 
 # ---------------- APPROVE/REJECT ----------------
 @app.route('/faculty/approve/<int:req_id>', methods=['POST'])
