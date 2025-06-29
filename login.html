@@ -81,9 +81,10 @@
       top: 50%;
       transform: translateY(-50%);
       cursor: pointer;
+      background: none;
+      border: none;
       font-size: 18px;
       color: #555;
-      user-select: none;
     }
 
     .btn {
@@ -176,7 +177,7 @@
         <label for="password">Password</label>
         <div class="password-wrapper">
           <input type="password" name="password" id="password" required>
-          <span class="toggle-password" id="togglePassword" onclick="togglePassword()">🐵</span>
+          <button type="button" class="toggle-password" onclick="togglePassword()">👁️</button>
         </div>
       </div>
 
@@ -191,14 +192,14 @@
   <script>
     function togglePassword() {
       const passwordInput = document.getElementById("password");
-      const toggleIcon = document.getElementById("togglePassword");
+      const toggleBtn = document.querySelector(".toggle-password");
 
       if (passwordInput.type === "password") {
         passwordInput.type = "text";
-        toggleIcon.textContent = "👁️"; // eye with slash
+        toggleBtn.textContent = "🙈";
       } else {
         passwordInput.type = "password";
-        toggleIcon.textContent = "👁️"; // eye
+        toggleBtn.textContent = "👁️";
       }
     }
   </script>
