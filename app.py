@@ -227,13 +227,13 @@ def faculty_approve(req_id):
     if session.get('role') != 'faculty':
         return redirect(url_for('login'))
 
-    status = request.form['action']
+    status = request.form['action']  # Approve or Reject
     remark = request.form['remark']
 
     conn = get_connection()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-    # Get student info
+    # Get request and student info
     cur.execute("""
         SELECT gr.*, s.name, s.email, s.student_id
         FROM gatepass_requests gr
@@ -243,6 +243,7 @@ def faculty_approve(req_id):
     data = cur.fetchone()
 
     if data:
+        # Update the status and remark
         cur.execute("""
             UPDATE gatepass_requests
             SET status=%s, faculty_remark=%s
@@ -250,27 +251,32 @@ def faculty_approve(req_id):
         """, (status, remark, req_id))
         conn.commit()
 
-        # Send email to student
-        subject = f"Gatepass Request {status.capitalize()}"
+        # Prepare email to student
+        subject = f"Gatepass Request {status.capitalize()} - Gatepass System"
         message = f"""
 Dear {data['name']},
 
-Your gatepass request submitted on {data['request_date'].strftime('%Y-%m-%d %H:%M')} has been {status.upper()}.
+Your gatepass request submitted on {data['request_date'].strftime('%Y-%m-%d %H:%M')} has been **{status.upper()}**.
 
 Faculty Remark: {remark}
 
-👉 View your dashboard: https://gatepass-system-gmz7.onrender.com/student/dashboard
+➡️ You can check the updated status here:  
+https://gatepass-system-gmz7.onrender.com/student/dashboard
 
 Regards,  
 Gatepass System
 """
+
+        # Send the email
         try:
             send_otp_email(data['email'], message, subject)
         except Exception as e:
-            flash("Status updated but failed to notify student: " + str(e))
+            print("Error sending email:", e)
+            flash("Request updated, but failed to notify student.")
 
     cur.close()
     conn.close()
+
     flash(f"Request {status} successfully.")
     return redirect(url_for('faculty_dashboard'))
 
