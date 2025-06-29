@@ -125,7 +125,8 @@ def student_dashboard():
     student = cur.fetchone()
 
     cur.execute("""
-        SELECT * FROM gatepass_requests
+        SELECT *, request_date AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata' AS ist_date
+        FROM gatepass_requests
         WHERE student_id=%s
         ORDER BY request_date DESC
     """, (student['student_id'],))
@@ -204,7 +205,7 @@ def faculty_dashboard():
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cur.execute("""
         SELECT gr.id, gr.student_id, s.name, s.branch, gr.reason,
-               gr.status, gr.faculty_remark, gr.request_date
+               gr.status, gr.faculty_remark, gr.request_date AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata' AS ist_date
         FROM gatepass_requests gr
         JOIN students s ON gr.student_id = s.student_id
         WHERE s.branch = %s
@@ -274,5 +275,4 @@ def logout():
     session.clear()
     return redirect(url_for('login'))
 
-if __name__ == '__main__':
-    app.run(debug=True)
+if __name__ == '__main
