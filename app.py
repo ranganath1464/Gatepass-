@@ -9,7 +9,7 @@ import os
 app = Flask(__name__)
 app.secret_key = "supersecretkey"
 
-# ---------------- GENERAL EMAIL FUNCTION ----------------
+# ---------------- EMAIL UTILITY ----------------
 def send_email(receiver_email, subject, body):
     sender_email = os.environ.get("EMAIL_USER")
     app_password = os.environ.get("EMAIL_PASSWORD")
@@ -162,7 +162,7 @@ def student_gatepass():
         if faculty:
             faculty_email = faculty['email']
             subject = f"New Gatepass Request from {student['name']} ({student['student_id']})"
-            message = f"""
+            body = f"""
 Dear Faculty,
 
 A new gatepass request has been submitted:
@@ -173,14 +173,13 @@ A new gatepass request has been submitted:
 - Reason: {reason}
 - Date: {request_date.strftime('%Y-%m-%d %H:%M')}
 
-Please login to your dashboard to take action:
-https://gatepass-system-gmz7.onrender.com/faculty/dashboard
+Login here to view: https://gatepass-system-gmz7.onrender.com/login
 
-Regards,  
+Regards,
 Gatepass System
             """
             try:
-                send_email(faculty_email, subject, message)
+                send_email(faculty_email, subject, body)
             except Exception as e:
                 flash("Gatepass submitted, but failed to notify faculty: " + str(e))
 
@@ -216,20 +215,19 @@ def faculty_dashboard():
 
     return render_template("faculty_dashboard.html", requests=requests)
 
-# ---------------- APPROVE / REJECT ----------------
+# ---------------- APPROVE/REJECT ----------------
 @app.route('/faculty/approve/<int:req_id>', methods=['POST'])
 def faculty_approve(req_id):
     if session.get('role') != 'faculty':
         return redirect(url_for('login'))
 
-    status = request.form['action']  # Approve or Reject
+    status = request.form['action']
     remark = request.form['remark']
 
     conn = get_connection()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-
     cur.execute("""
-        SELECT gr.*, s.name, s.email, s.student_id
+        SELECT gr.*, s.name, s.email, s.student_id, gr.request_date
         FROM gatepass_requests gr
         JOIN students s ON gr.student_id = s.student_id
         WHERE gr.id = %s
@@ -245,24 +243,23 @@ def faculty_approve(req_id):
         conn.commit()
 
         subject = f"Gatepass Request {status.capitalize()} - Gatepass System"
-        message = f"""
+        body = f"""
 Dear {data['name']},
 
-Your gatepass request submitted on {data['request_date'].strftime('%Y-%m-%d %H:%M')} has been **{status.upper()}**.
+Your gatepass request submitted on {data['request_date'].strftime('%Y-%m-%d %H:%M')} has been {status.upper()}.
 
 Faculty Remark: {remark}
 
-➡️ Check your dashboard here:  
+You can check status here:
 https://gatepass-system-gmz7.onrender.com/student/dashboard
 
-Regards,  
+Regards,
 Gatepass System
         """
         try:
-            send_email(data['email'], subject, message)
+            send_email(data['email'], subject, body)
         except Exception as e:
-            print("Email error:", e)
-            flash("Status updated, but email to student failed.")
+            flash("Request updated, but failed to notify student: " + str(e))
 
     cur.close()
     conn.close()
