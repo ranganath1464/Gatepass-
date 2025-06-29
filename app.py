@@ -9,17 +9,19 @@ import os
 app = Flask(__name__)
 app.secret_key = "supersecretkey"
 
-# ---------------- EMAIL UTILITY (supports OTP and notifications) ----------------
-def send_otp_email(receiver_email, message, subject="Gatepass System Notification"):
+# ---------------- EMAIL OTP UTILITY ----------------
+def send_otp_email(receiver_email, otp):
     sender_email = os.environ.get("EMAIL_USER")
     app_password = os.environ.get("EMAIL_PASSWORD")
 
-    full_message = f"Subject: {subject}\n\n{message}"
+    subject = "Your OTP Verification Code"
+    body = f"Your OTP is: {otp}"
+    message = f"Subject: {subject}\n\n{body}"
 
     context = ssl.create_default_context()
     with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
         server.login(sender_email, app_password)
-        server.sendmail(sender_email, receiver_email, full_message)
+        server.sendmail(sender_email, receiver_email, message)
 
 @app.route('/')
 def home():
@@ -49,8 +51,7 @@ def register():
         }
 
         try:
-            body = f"Your OTP is: {otp}"
-            send_otp_email(email, body, subject="Your OTP Verification Code")
+            send_otp_email(email, otp)
             flash("OTP sent to your email. Please verify.")
             return redirect(url_for('verify_otp'))
         except Exception as e:
@@ -165,30 +166,26 @@ def student_gatepass():
 
         if faculty:
             faculty_email = faculty['email']
-            faculty_branch = student['branch']
-            faculty_link = f"https://gatepass-system-gmz7.onrender.com/faculty/dashboard?branch={faculty_branch}"
-
-            subject = f"New Gatepass Request - {faculty_branch} Department"
+            subject = f"New Gatepass Request from {student['name']} ({student['student_id']})"
             message = f"""
-Dear {faculty_branch} Faculty,
+Dear Faculty,
 
 A new gatepass request has been submitted:
 
-- Name       : {student['name']}
-- Student ID : {student['student_id']}
-- Branch     : {student['branch']}
-- Reason     : {reason}
-- Date       : {request_date.strftime('%Y-%m-%d %H:%M')}
+- Name: {student['name']}
+- Student ID: {student['student_id']}
+- Branch: {student['branch']}
+- Reason: {reason}
+- Date: {request_date.strftime('%Y-%m-%d %H:%M')}
 
-👉 Login to your dashboard: {faculty_link}
-
-(You must be logged in as a faculty member of {faculty_branch} to view this request.)
+Please login to your dashboard to take action.
+https://gatepass-system-gmz7.onrender.com/login
 
 Regards,  
 Gatepass System
-"""
+            """
             try:
-                send_otp_email(faculty_email, message, subject=subject)
+                send_otp_email(faculty_email, message)  # Reusing your send email function
             except Exception as e:
                 flash("Gatepass submitted, but failed to notify faculty: " + str(e))
 
@@ -201,6 +198,28 @@ Gatepass System
     conn.close()
     return render_template("gatepass_form.html", student=student)
 
+# ---------------- FACULTY DASHBOARD ----------------
+@app.route('/faculty/dashboard')
+def faculty_dashboard():
+    if session.get('role') != 'faculty':
+        return redirect(url_for('login'))
+
+    branch = session.get('branch')
+    conn = get_connection()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("""
+        SELECT gr.id, gr.student_id, s.name, s.branch, gr.reason,
+               gr.status, gr.faculty_remark, gr.request_date
+        FROM gatepass_requests gr
+        JOIN students s ON gr.student_id = s.student_id
+        WHERE s.branch = %s
+        ORDER BY gr.request_date DESC
+    """, (branch,))
+    requests = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    return render_template("faculty_dashboard.html", requests=requests)
 
 # ---------------- APPROVE/REJECT ----------------
 @app.route('/faculty/approve/<int:req_id>', methods=['POST'])
@@ -231,4 +250,4 @@ def logout():
     return redirect(url_for('login'))
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True) 
