@@ -150,8 +150,8 @@
         <tr>
           <td>{{ req['reason'] }}</td>
           <td class="status-{{ req['status'] | lower }}">{{ req['status'] }}</td>
-          <td>{{ req['request_date'].strftime('%d-%m-%Y %H:%M') }}</td>
-          <td>{{ req['faculty_remark'] if req['faculty_remark'] else 'Pending' }}</td>
+         <td>{{ req['request_date'].strftime('%d-%m-%Y %I:%M %p') }}</td>
+         <td>{{ req['faculty_remark'] if req['faculty_remark'] else 'Pending' }}</td>
         </tr>
         {% endfor %}
       </tbody>
