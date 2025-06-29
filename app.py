@@ -215,7 +215,12 @@ def faculty_dashboard():
 
     return render_template("faculty_dashboard.html", requests=requests)
 
-# ---------------- APPROVE/REJECT ----------------
+from io import BytesIO
+from base64 import b64encode
+import qrcode
+import pytz
+
+# ---------------- APPROVE/REJECT WITH QR & IST ----------------
 @app.route('/faculty/approve/<int:req_id>', methods=['POST'])
 def faculty_approve(req_id):
     if session.get('role') != 'faculty':
@@ -242,22 +247,44 @@ def faculty_approve(req_id):
         """, (status, remark, req_id))
         conn.commit()
 
+        # Convert to IST
+        ist = pytz.timezone("Asia/Kolkata")
+        ist_time = data['request_date'].astimezone(ist)
+        formatted_time = ist_time.strftime('%Y-%m-%d %H:%M')
+
+        # QR Code for status page
+        status_url = f"https://gatepass-system-gmz7.onrender.com/status/{req_id}"
+        qr_img = qrcode.make(status_url)
+        buffer = BytesIO()
+        qr_img.save(buffer, format="PNG")
+        qr_base64 = b64encode(buffer.getvalue()).decode()
+
         subject = f"Gatepass Request {status.capitalize()} - Gatepass System"
         body = f"""
-Dear {data['name']},
+<html>
+<body>
+<p>Dear {data['name']},</p>
+<p>Your gatepass request submitted on <b>{formatted_time}</b> has been <b>{status.upper()}</b>.</p>
+<p><b>Faculty Remark:</b> {remark}</p>
+<p>You can also scan the QR below to check the status:</p>
+<img src="data:image/png;base64,{qr_base64}" alt="QR Code" />
+<br><br>
+<p>Or click here: <a href="{status_url}">{status_url}</a></p>
+<p>Regards,<br>Gatepass System</p>
+</body>
+</html>
+"""
 
-Your gatepass request submitted on {data['request_date'].strftime('%Y-%m-%d %H:%M')} has been {status.upper()}.
-
-Faculty Remark: {remark}
-
-You can check status here:
-https://gatepass-system-gmz7.onrender.com/student/dashboard
-
-Regards,
-Gatepass System
-        """
         try:
-            send_email(data['email'], subject, body)
+            sender_email = os.environ.get("EMAIL_USER")
+            app_password = os.environ.get("EMAIL_PASSWORD")
+
+            email_message = f"Subject: {subject}\nContent-Type: text/html\n\n{body}"
+
+            context = ssl.create_default_context()
+            with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
+                server.login(sender_email, app_password)
+                server.sendmail(sender_email, data['email'], email_message)
         except Exception as e:
             flash("Request updated, but failed to notify student: " + str(e))
 
