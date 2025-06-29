@@ -173,8 +173,9 @@
               <td>{{ req['reason'] }}</td>
               <td><strong>{{ req['status'] }}</strong></td>
               <td>{{ req['faculty_remark'] or '-' }}</td>
-              <td>{{ req['request_date'].strftime('%Y-%m-%d %H:%M') }}</td>
-              <td>
+              <td>{{ req['request_date'].strftime('%d-%m-%Y %I:%M %p') }}</td>
+
+               <td>
                 {% if req['status'] == 'Pending' %}
                   <form method="POST" action="{{ url_for('faculty_approve', req_id=req['id']) }}">
                     <textarea name="remark" placeholder="Add remark..." required></textarea>
