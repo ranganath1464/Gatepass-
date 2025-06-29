@@ -164,6 +164,12 @@ def student_gatepass():
         if faculty:
             faculty_email = faculty['email']
             subject = f"New Gatepass Request from {student['name']} ({student['student_id']})"
+
+            # Format date and time
+            day_str = request_date.strftime('%A')                # e.g., Sunday
+            date_str = request_date.strftime('%d-%m-%Y')         # e.g., 29-06-2025
+            time_str = request_date.strftime('%I:%M %p')         # e.g., 03:45 PM
+
             body = f"""
 Dear Faculty,
 
@@ -173,7 +179,8 @@ A new gatepass request has been submitted:
 - Student ID: {student['student_id']}
 - Branch: {student['branch']}
 - Reason: {reason}
-- Date: {request_date.strftime('%Y-%m-%d %H:%M')}
+- Date: {date_str}, {day_str}
+- Time: {time_str}
 
 Login here to view: https://gatepass-system-gmz7.onrender.com/login
 
@@ -244,15 +251,22 @@ def faculty_approve(req_id):
         """, (status, remark, req_id))
         conn.commit()
 
-        # Convert request time to IST
+        # Convert request time to IST and format
         ist = pytz.timezone('Asia/Kolkata')
-        request_time_ist = data['request_date'].astimezone(ist).strftime('%Y-%m-%d %H:%M')
+        request_datetime_ist = data['request_date'].astimezone(ist)
+        day_str = request_datetime_ist.strftime('%A')                # Sunday
+        date_str = request_datetime_ist.strftime('%d-%m-%Y')         # 29-06-2025
+        time_str = request_datetime_ist.strftime('%I:%M %p')         # 03:45 PM
 
         subject = f"Gatepass Request {status.capitalize()} - Gatepass System"
         body = f"""
 Dear {data['name']},
 
-Your gatepass request submitted on {request_time_ist} has been {status.upper()}.
+Your gatepass request submitted on:
+Date: {date_str}, {day_str}
+Time: {time_str}
+
+has been {status.upper()}.
 
 Faculty Remark: {remark}
 
