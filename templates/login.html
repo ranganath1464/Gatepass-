@@ -8,6 +8,16 @@
     * { box-sizing: border-box; font-family: 'Poppins', sans-serif; }
     body { background: #f0f4f8; margin: 0; padding: 0; }
 
+    .developed-by {
+      position: absolute;
+      top: 10px;
+      right: 20px;
+      font-size: 14px;
+      font-weight: 500;
+      color: #333;
+      z-index: 1000;
+    }
+
     .header {
       background: #003a91;
       color: white;
@@ -129,6 +139,9 @@
 </head>
 <body>
 
+  <!-- Top Right Label -->
+  <div class="developed-by">Developed by <strong>RAVS</strong></div>
+
   <div class="header">
     <div class="header-content">
       <img src="{{ url_for('static', filename='logo.jpg') }}" alt="College Logo">
@@ -195,10 +208,10 @@
 
       if (passwordInput.type === "password") {
         passwordInput.type = "text";
-        toggleIcon.textContent = "🙈"; // eye with slash
+        toggleIcon.textContent = "🙈";
       } else {
         passwordInput.type = "password";
-        toggleIcon.textContent = "🐵"; // eye
+        toggleIcon.textContent = "🐵";
       }
     }
   </script>
