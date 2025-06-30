@@ -257,6 +257,7 @@ def faculty_approve(req_id):
     data = cur.fetchone()
 
     if data:
+        # Update the status and remark
         cur.execute("""
             UPDATE gatepass_requests
             SET status=%s, faculty_remark=%s
@@ -264,29 +265,39 @@ def faculty_approve(req_id):
         """, (status, remark, req_id))
         conn.commit()
 
-        # Convert request time to IST and format
+        # Convert original request time to IST
         ist = pytz.timezone('Asia/Kolkata')
         request_datetime_ist = data['request_date'].astimezone(ist)
-        day_str = request_datetime_ist.strftime('%A')                # Sunday
-        date_str = request_datetime_ist.strftime('%d-%m-%Y')         # 29-06-2025
-        time_str = request_datetime_ist.strftime('%I:%M %p')         # 03:45 PM
+        request_day_str = request_datetime_ist.strftime('%A')               # Sunday
+        request_date_str = request_datetime_ist.strftime('%d-%m-%Y')        # 29-06-2025
+        request_time_str = request_datetime_ist.strftime('%I:%M %p')        # 03:45 PM
+
+        # Get current IST time for approval/rejection
+        approval_datetime_ist = datetime.now(pytz.utc).astimezone(ist)
+        approval_day_str = approval_datetime_ist.strftime('%A')
+        approval_date_str = approval_datetime_ist.strftime('%d-%m-%Y')
+        approval_time_str = approval_datetime_ist.strftime('%I:%M %p')
 
         subject = f"Gatepass Request {status.capitalize()} - Gatepass System"
         body = f"""
 Dear {data['name']},
 
 Your gatepass request submitted on:
-Date: {date_str}, {day_str}
-Time: {time_str}
+Date: {request_date_str}, {request_day_str}
+Time: {request_time_str}
 
 has been {status.upper()}.
 
 Faculty Remark: {remark}
 
-You can check status here:
+Approval/Decision Time:
+Date: {approval_date_str}, {approval_day_str}
+Time: {approval_time_str}
+
+You can check the status here:
 https://gatepass-system-gmz7.onrender.com/student/dashboard
 
-Regards,
+Regards,  
 Gatepass System
         """
         try:
