@@ -59,9 +59,3 @@ A complete web-based Gatepass Management System for colleges, built using **Flas
 
 ---
 
-## 🛠️ Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/your-username/gatepass-system.git
-   cd gatepass-system
