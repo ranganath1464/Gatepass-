@@ -17,6 +17,16 @@
       padding: 0;
     }
 
+    .developed-by {
+      position: absolute;
+      top: 10px;
+      right: 20px;
+      font-size: 14px;
+      font-weight: 500;
+      color: #333;
+      z-index: 1000;
+    }
+
     .header {
       background: #003a91;
       color: white;
@@ -146,6 +156,10 @@
   </style>
 </head>
 <body>
+
+  <!-- New top right label -->
+  <div class="developed-by">Developed by <strong>RAVS</strong></div>
+
   <div class="header">
     <div class="header-content">
       <img src="{{ url_for('static', filename='logo.jpg') }}" alt="College Logo" />
