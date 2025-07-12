@@ -1,277 +1,113 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash
-from db_config import get_connection
-import psycopg2.extras
-from datetime import datetime
-import smtplib, ssl
-import random
-import os
-import pytz
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Gatepass Request</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    * {
+      box-sizing: border-box;
+    }
 
-app = Flask(__name__)
-app.secret_key = "supersecretkey"
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #003a91, #0050b3);
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
 
-# ---------------- EMAIL UTILITY ----------------
-def send_email(receiver_email, subject, body):
-    sender_email = os.environ.get("EMAIL_USER")
-    app_password = os.environ.get("EMAIL_PASSWORD")
-    message = f"Subject: {subject}\n\n{body}"
-    context = ssl.create_default_context()
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
-        server.login(sender_email, app_password)
-        server.sendmail(sender_email, receiver_email, message)
+    .form-container {
+      background: #fff;
+      padding: 30px 40px;
+      border-radius: 12px;
+      max-width: 450px;
+      width: 100%;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+    }
 
-# ---------------- ROUTES ----------------
-@app.route('/')
-def home():
-    return redirect(url_for('login'))
+    .form-container h2 {
+      text-align: center;
+      margin-bottom: 25px;
+      color: #003a91;
+    }
 
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    if request.method == 'POST':
-        name = request.form['name']
-        branch = request.form['branch']
-        student_id = request.form['student_id']
-        mobile = request.form['mobile']
-        email = request.form['email']
-        password = request.form['password']
-        conn = get_connection()
-        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        cur.execute("SELECT * FROM students WHERE email = %s", (email,))
-        existing_user = cur.fetchone()
-        if existing_user:
-            cur.close()
-            conn.close()
-            return render_template('register.html', error="Email is already in use.")
-        otp = str(random.randint(100000, 999999))
-        session['otp'] = otp
-        session['pending_user'] = {
-            'name': name,
-            'branch': branch,
-            'student_id': student_id,
-            'mobile': mobile,
-            'email': email,
-            'password': password
-        }
-        subject = "Your OTP for Gatepass Registration"
-        body = f"Dear {name},\n\nYour OTP for registration is: {otp}\n\nPlease enter this on the verification page."
-        try:
-            send_email(email, subject, body)
-        except Exception as e:
-            flash("Failed to send OTP. Please check your email settings.")
-            cur.close()
-            conn.close()
-            return render_template('register.html')
-        cur.close()
-        conn.close()
-        return redirect(url_for('verify_otp'))
-    return render_template('register.html')
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: bold;
+      color: #333;
+    }
 
-@app.route('/verify-otp', methods=['GET', 'POST'])
-def verify_otp():
-    if request.method == 'POST':
-        entered_otp = request.form['otp']
-        if entered_otp == session.get('otp'):
-            user = session.get('pending_user')
-            conn = get_connection()
-            cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-            try:
-                cur.execute("""
-                    INSERT INTO students (name, student_id, branch, email, mobile, password)
-                    VALUES (%s, %s, %s, %s, %s, %s)
-                """, (user['name'], user['student_id'], user['branch'], user['email'], user['mobile'], user['password']))
-                conn.commit()
-                flash("Registration successful! Please login.")
-                return redirect(url_for('login'))
-            except Exception as e:
-                conn.rollback()
-                flash("Error saving to database: " + str(e))
-            finally:
-                cur.close()
-                conn.close()
-        else:
-            flash("Invalid OTP. Please try again.")
-    return render_template("verify_otp.html")
+    input[type="text"],
+    textarea {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 20px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 15px;
+    }
 
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    error = None
-    if request.method == 'POST':
-        role = request.form['role']
-        email = request.form['email'].strip()
-        password = request.form['password'].strip()
-        table = 'students' if role == 'student' else 'faculty'
-        conn = get_connection()
-        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        cur.execute(f"SELECT * FROM {table} WHERE email=%s", (email,))
-        user = cur.fetchone()
-        cur.close()
-        conn.close()
-        if user and user['password'] == password:
-            session['email'] = email
-            session['role'] = role
-            session['branch'] = user['branch']
-            return redirect(url_for('student_dashboard' if role == 'student' else 'faculty_dashboard'))
-        else:
-            error = "Invalid credentials."
-    return render_template("login.html", error=error)
+    textarea {
+      resize: vertical;
+      height: 100px;
+    }
 
-@app.route('/student/dashboard')
-def student_dashboard():
-    if 'email' not in session or session.get('role') != 'student':
-        flash("Unauthorized access.")
-        return redirect(url_for('login'))
+    .btn {
+      width: 100%;
+      padding: 12px;
+      background-color: #003a91;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
 
-    email = session['email']
-    branch = session.get('branch', '')
+    .btn:hover {
+      background-color: #002e6d;
+    }
 
-    conn = get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute("SELECT * FROM students WHERE email = %s", (email,))
-    student = cur.fetchone()
+    .back-link {
+      display: block;
+      margin-top: 20px;
+      text-align: center;
+      text-decoration: none;
+      color: #003a91;
+      font-weight: bold;
+    }
 
-    cur.execute("""
-        SELECT * FROM gatepass_requests
-        WHERE student_id = %s
-        ORDER BY request_date DESC
-    """, (student['student_id'],))
-    requests = cur.fetchall()
+    .back-link:hover {
+      text-decoration: underline;
+    }
 
-    cur.close()
-    conn.close()
+    @media (max-width: 500px) {
+      .form-container {
+        padding: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
 
-    return render_template('student_dashboard.html', student=student, requests=requests)
+  <form method="POST" class="form-container">
+    <h2>Gatepass Request</h2>
 
-@app.route('/gatepass/request', methods=['GET', 'POST'], endpoint='student_gatepass')
-def student_gatepass():
-    if 'email' not in session or session.get('role') != 'student':
-        flash("Unauthorized access.")
-        return redirect(url_for('login'))
-    if request.method == 'POST':
-        reason = request.form['reason']
-        student_email = session['email']
-        branch = session['branch']
-        conn = get_connection()
-        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        cur.execute("SELECT student_id, name FROM students WHERE email = %s", (student_email,))
-        student = cur.fetchone()
-        request_date = datetime.now(pytz.timezone('Asia/Kolkata'))
-        cur.execute("""
-            INSERT INTO gatepass_requests (student_id, reason, status, request_date)
-            VALUES (%s, %s, 'Pending', %s)
-        """, (student['student_id'], reason, request_date))
-        conn.commit()
-        cur.close()
-        conn.close()
-        flash("Gatepass request submitted.")
-        return redirect(url_for('student_dashboard'))
-    return render_template('gatepass_form.html')
+    <label>Student ID:</label>
+    <input type="text" name="student_id" value="{{ student['student_id'] }}" readonly>
 
-@app.route('/faculty/dashboard')
-def faculty_dashboard():
-    if 'email' not in session or session.get('role') != 'faculty':
-        flash("Unauthorized access.")
-        return redirect(url_for('login'))
+    <label>Reason for Gatepass:</label>
+    <textarea name="reason" placeholder="Enter your reason..." required></textarea>
 
-    email = session['email']
-    branch = session.get('branch', '')
+    <button type="submit" class="btn">Submit Request</button>
 
-    conn = get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute("SELECT * FROM faculty WHERE email = %s", (email,))
-    faculty = cur.fetchone()
+    <a href="{{ url_for('student_dashboard') }}" class="back-link">← Back to Dashboard</a>
+  </form>
 
-    cur.execute("""
-        SELECT g.*, s.name FROM gatepass_requests g
-        JOIN students s ON g.student_id = s.student_id
-        WHERE s.branch = %s
-        ORDER BY g.request_date DESC
-    """, (branch,))
-    requests = cur.fetchall()
-
-    cur.close()
-    conn.close()
-
-    return render_template('faculty_dashboard.html', faculty=faculty, requests=requests)
-
-@app.route('/faculty/approve/<int:req_id>', methods=['POST'])
-def faculty_approve(req_id):
-    if 'email' not in session or session.get('role') != 'faculty':
-        flash("Unauthorized access.")
-        return redirect(url_for('login'))
-
-    action = request.form['action']
-    remark = request.form['remark']
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("""
-        UPDATE gatepass_requests
-        SET status = %s, faculty_remark = %s
-        WHERE id = %s
-    """, (action, remark, req_id))
-    conn.commit()
-    cur.close()
-    conn.close()
-    flash(f"Request {action.lower()}ed successfully.")
-    return redirect(url_for('faculty_dashboard'))
-
-@app.route('/forgot-password', methods=['GET', 'POST'])
-def forgot_password():
-    if request.method == 'POST':
-        email = request.form['email'].strip()
-        role = request.form['role']
-        table = 'students' if role == 'student' else 'faculty'
-        conn = get_connection()
-        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        cur.execute(f"SELECT * FROM {table} WHERE email = %s", (email,))
-        user = cur.fetchone()
-        cur.close()
-        conn.close()
-        if not user:
-            flash("No account found with that email.")
-            return render_template('forgot_password.html')
-        otp = str(random.randint(100000, 999999))
-        session['reset_otp'] = otp
-        session['reset_email'] = email
-        session['reset_role'] = role
-        subject = "Password Reset OTP - Gatepass System"
-        body = f"Dear {user['name']},\n\nYour OTP for password reset is: {otp}\n\nIf you did not request this, please ignore this email.\n\nRegards,\nGatepass System"
-        try:
-            send_email(email, subject, body)
-            flash("OTP sent to your email address.")
-            return redirect(url_for('reset_password'))
-        except Exception as e:
-            flash("Failed to send OTP email: " + str(e))
-    return render_template('forgot_password.html')
-
-@app.route('/reset-password', methods=['GET', 'POST'])
-def reset_password():
-    if request.method == 'POST':
-        entered_otp = request.form['otp']
-        new_password = request.form['new_password']
-        if entered_otp != session.get('reset_otp'):
-            flash("Invalid OTP. Please try again.")
-            return render_template("reset_password.html")
-        email = session.get('reset_email')
-        role = session.get('reset_role')
-        table = 'students' if role == 'student' else 'faculty'
-        conn = get_connection()
-        cur = conn.cursor()
-        cur.execute(f"UPDATE {table} SET password = %s WHERE email = %s", (new_password, email))
-        conn.commit()
-        cur.close()
-        conn.close()
-        session.pop('reset_otp', None)
-        session.pop('reset_email', None)
-        session.pop('reset_role', None)
-        flash("Password reset successfully. Please log in.")
-        return redirect(url_for('login'))
-    return render_template("reset_password.html")
-
-@app.route('/logout')
-def logout():
-    session.clear()
-    return redirect(url_for('login'))
-
-# ---------------- MAIN ----------------
-if __name__ == '__main__':
-    app.run(debug=True)
+</body>
+</html>
