@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Status - {{ status }}</title>
+    <style>
+        body {
+            background-color: {{ bg }};
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            text-align: center;
+        }
+        h1 {
+            font-size: 4rem;
+            margin-bottom: 0.5em;
+            text-transform: uppercase;
+        }
+        p {
+            font-size: 2rem;
+            margin: 0.2em;
+        }
+    </style>
+</head>
+<body>
+    <h1>{{ status }}</h1>
+    <p>{{ name }}</p>
+    <p>{{ dt.strftime("%d-%m-%Y %I:%M %p") }}</p>
+</body>
+</html>
