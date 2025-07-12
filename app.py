@@ -118,18 +118,37 @@ def student_dashboard():
     if 'email' not in session or session.get('role') != 'student':
         flash("Unauthorized access.")
         return redirect(url_for('login'))
+
     email = session['email']
     branch = session.get('branch', '')
-    return render_template('student_dashboard.html', email=email, branch=branch)
+
+    conn = get_connection()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT * FROM students WHERE email = %s", (email,))
+    student = cur.fetchone()
+    cur.close()
+    conn.close()
+
+    return render_template('student_dashboard.html', student=student)
+
 
 @app.route('/faculty/dashboard')
 def faculty_dashboard():
     if 'email' not in session or session.get('role') != 'faculty':
         flash("Unauthorized access.")
         return redirect(url_for('login'))
+
     email = session['email']
     branch = session.get('branch', '')
-    return render_template('faculty_dashboard.html', email=email, branch=branch)
+
+    conn = get_connection()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT * FROM faculty WHERE email = %s", (email,))
+    faculty = cur.fetchone()
+    cur.close()
+    conn.close()
+
+    return render_template('faculty_dashboard.html', faculty=faculty)
 
 @app.route('/gatepass/request', methods=['GET', 'POST'])
 def gatepass_request():
