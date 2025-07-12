@@ -35,6 +35,8 @@ def register():
     if request.method == 'POST':
         name = request.form['name']
         branch = request.form['branch']
+        year = request.form['year']                    # NEW
+        semester = request.form['semester']            # NEW
         student_id = request.form['student_id']
         mobile = request.form['mobile']
         email = request.form['email']
@@ -51,12 +53,14 @@ def register():
             conn.close()
             return render_template('register.html', error="Email is already in use.")
 
-        # Generate and store OTP in session
+        # Store data in session for OTP verification
         otp = str(random.randint(100000, 999999))
         session['otp'] = otp
         session['pending_user'] = {
             'name': name,
             'branch': branch,
+            'year': year,                     # NEW
+            'semester': semester,             # NEW
             'student_id': student_id,
             'mobile': mobile,
             'email': email,
@@ -92,9 +96,18 @@ def verify_otp():
             cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
             try:
                 cur.execute("""
-                    INSERT INTO students (name, student_id, branch, email, mobile, password)
-                    VALUES (%s, %s, %s, %s, %s, %s)
-                """, (user['name'], user['student_id'], user['branch'], user['email'], user['mobile'], user['password']))
+                    INSERT INTO students (name, student_id, branch, year, semester, email, mobile, password)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                """, (
+                    user['name'],
+                    user['student_id'],
+                    user['branch'],
+                    user['year'],               # NEW
+                    user['semester'],           # NEW
+                    user['email'],
+                    user['mobile'],
+                    user['password']
+                ))
                 conn.commit()
                 flash("Registration successful! Please login.")
                 return redirect(url_for('login'))
@@ -108,7 +121,6 @@ def verify_otp():
             flash("Invalid OTP. Please try again.")
 
     return render_template("verify_otp.html")
-
 
 # ---------------- LOGIN ----------------
 @app.route('/login', methods=['GET', 'POST'])
