@@ -6,6 +6,10 @@ import smtplib, ssl
 import random
 import os
 import pytz
+import qrcode
+from io import BytesIO
+import base64
+
 
 app = Flask(__name__)
 app.secret_key = "supersecretkey"
@@ -289,6 +293,13 @@ def faculty_approve(req_id):
         req_dt = data['request_date'].astimezone(ist)
         now_dt = datetime.now(pytz.utc).astimezone(ist)
 
+        # ✅ Generate QR code URL
+        qr_url = url_for('qr_status', req_id=req_id, _external=True)
+        qr = qrcode.make(qr_url)
+        img_buffer = BytesIO()
+        qr.save(img_buffer, format='PNG')
+        img_data = base64.b64encode(img_buffer.getvalue()).decode()
+
         subject = f"Gatepass {status.upper()} - Gatepass System"
         body = f"""
 Dear {data['name']},
@@ -305,8 +316,8 @@ Approved On:
 Date: {now_dt.strftime('%d-%m-%Y')}, {now_dt.strftime('%A')}
 Time: {now_dt.strftime('%I:%M %p')}
 
-Check status here:
-https://gatepass-system-gmz7.onrender.com/student/dashboard
+Scan this QR to verify your status:
+{qr_url}
 
 Regards,
 Gatepass System
@@ -320,7 +331,6 @@ Gatepass System
     conn.close()
     flash(f"Request {status} successfully.")
     return redirect(url_for('faculty_dashboard'))
-
 
 # ---------------- LOGOUT ----------------
 @app.route('/logout')
@@ -409,3 +419,22 @@ def reset_password():
         return redirect(url_for('login'))
 
     return render_template("reset_password.html")
+@app.route('/qr-status/<int:req_id>')
+def qr_status(req_id):
+    conn = get_connection()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("""
+        SELECT gr.status, gr.request_date, s.name
+        FROM gatepass_requests gr
+        JOIN students s ON gr.student_id = s.student_id
+        WHERE gr.id = %s
+    """, (req_id,))
+    data = cur.fetchone()
+    cur.close()
+    conn.close()
+
+    if not data:
+        return "Invalid QR", 404
+
+    return render_template("qr_status.html", status=data['status'], name=data['name'], time=data['request_date'])
+
