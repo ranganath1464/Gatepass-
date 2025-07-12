@@ -31,6 +31,8 @@ def register():
     if request.method == 'POST':
         name = request.form['name']
         branch = request.form['branch']
+        year = request.form['year']
+        semester = request.form['semester']
         student_id = request.form['student_id']
         mobile = request.form['mobile']
         email = request.form['email']
@@ -47,12 +49,13 @@ def register():
             conn.close()
             return render_template('register.html', error="Email is already in use.")
 
-        # Generate and store OTP in session
         otp = str(random.randint(100000, 999999))
         session['otp'] = otp
         session['pending_user'] = {
             'name': name,
             'branch': branch,
+            'year': year,
+            'semester': semester,
             'student_id': student_id,
             'mobile': mobile,
             'email': email,
@@ -76,7 +79,6 @@ def register():
 
     return render_template('register.html')
 
-
 # ---------------- VERIFY OTP ----------------
 @app.route('/verify-otp', methods=['GET', 'POST'])
 def verify_otp():
@@ -88,9 +90,9 @@ def verify_otp():
             cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
             try:
                 cur.execute("""
-                    INSERT INTO students (name, student_id, branch, email, mobile, password)
-                    VALUES (%s, %s, %s, %s, %s, %s)
-                """, (user['name'], user['student_id'], user['branch'], user['email'], user['mobile'], user['password']))
+                    INSERT INTO students (name, student_id, branch, year, semester, email, mobile, password)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                """, (user['name'], user['student_id'], user['branch'], user['year'], user['semester'], user['email'], user['mobile'], user['password']))
                 conn.commit()
                 flash("Registration successful! Please login.")
                 return redirect(url_for('login'))
@@ -104,7 +106,6 @@ def verify_otp():
             flash("Invalid OTP. Please try again.")
 
     return render_template("verify_otp.html")
-
 
 # ---------------- LOGIN ----------------
 @app.route('/login', methods=['GET', 'POST'])
@@ -133,7 +134,6 @@ def login():
 
     return render_template("login.html", error=error)
 
-
 # ---------------- STUDENT DASHBOARD ----------------
 @app.route('/student/dashboard')
 def student_dashboard():
@@ -161,7 +161,6 @@ def student_dashboard():
             req['request_date'] = req['request_date'].astimezone(ist)
 
     return render_template("student_dashboard.html", student=student, requests=requests)
-
 
 # ---------------- GATEPASS REQUEST ----------------
 @app.route('/student/gatepass', methods=['GET', 'POST'])
@@ -228,7 +227,6 @@ Gatepass System
     conn.close()
     return render_template("gatepass_form.html", student=student)
 
-
 # ---------------- FACULTY DASHBOARD ----------------
 @app.route('/faculty/dashboard')
 def faculty_dashboard():
@@ -256,7 +254,6 @@ def faculty_dashboard():
             req['request_date'] = req['request_date'].astimezone(ist)
 
     return render_template("faculty_dashboard.html", requests=requests)
-
 
 # ---------------- APPROVE/REJECT ----------------
 @app.route('/faculty/approve/<int:req_id>', methods=['POST'])
@@ -321,16 +318,7 @@ Gatepass System
     flash(f"Request {status} successfully.")
     return redirect(url_for('faculty_dashboard'))
 
-
-# ---------------- LOGOUT ----------------
-@app.route('/logout')
-def logout():
-    session.clear()
-    return redirect(url_for('login'))
-
-
-if __name__ == '__main__':
-    app.run(debug=True)
+# ---------------- FORGOT PASSWORD ----------------
 @app.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
     if request.method == 'POST':
@@ -349,7 +337,6 @@ def forgot_password():
             flash("No account found with that email.", "danger")
             return render_template('forgot_password.html')
 
-        # Generate OTP
         otp = str(random.randint(100000, 999999))
         session['reset_otp'] = otp
         session['reset_email'] = email
@@ -406,3 +393,11 @@ def reset_password():
 
     return render_template("reset_password.html")
 
+# ---------------- LOGOUT ----------------
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('login'))
+
+if __name__ == '__main__':
+    app.run(debug=True)
