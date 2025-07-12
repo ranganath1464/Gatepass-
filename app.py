@@ -426,6 +426,9 @@ def reset_password():
 
     return render_template("reset_password.html")
 
+from datetime import datetime
+import pytz
+
 @app.route('/qr-status/<int:req_id>')
 def qr_status(req_id):
     conn = get_connection()
@@ -443,20 +446,16 @@ def qr_status(req_id):
     if not data:
         return "Invalid QR or request ID."
 
+    # Convert time to IST
+    ist = pytz.timezone('Asia/Kolkata')
+    dt = data['request_date'].astimezone(ist)
+
+    # Fix background logic
     status_upper = data['status'].upper()
-    bg_color = "#dc3545" if status_upper == "ACCEPTED" else "#28a745"  # Green or Red
+    bg_color = "#28a745" if status_upper == "ACCEPTED" else "#dc3545"  # Green if accepted, Red if rejected
 
     return render_template("qr_status_page.html",
                            status=status_upper,
                            name=data['name'],
-                           dt=data['request_date'],
+                           dt=dt,
                            bg=bg_color)
-
-
-    return render_template("qr_status_page.html", 
-                           status=status_upper, 
-                           name=data['name'], 
-                           dt=data['request_date'], 
-                           bg=bg_color)
-
-
