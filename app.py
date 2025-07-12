@@ -331,3 +331,78 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+@app.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    if request.method == 'POST':
+        email = request.form['email']
+        role = request.form['role']
+        table = 'students' if role == 'student' else 'faculty'
+
+        conn = get_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute(f"SELECT * FROM {table} WHERE email = %s", (email,))
+        user = cur.fetchone()
+        cur.close()
+        conn.close()
+
+        if not user:
+            flash("No account found with that email.", "danger")
+            return render_template('forgot_password.html')
+
+        # Generate OTP
+        otp = str(random.randint(100000, 999999))
+        session['reset_otp'] = otp
+        session['reset_email'] = email
+        session['reset_role'] = role
+
+        subject = "Password Reset OTP - Gatepass System"
+        body = f"""
+Dear {user['name']},
+
+Your OTP for password reset is: {otp}
+
+If you did not request this, please ignore this email.
+
+Regards,
+Gatepass System
+        """
+
+        try:
+            send_email(email, subject, body)
+            flash("OTP sent to your email address.", "info")
+            return redirect(url_for('reset_password'))
+        except Exception as e:
+            flash("Failed to send OTP email: " + str(e), "danger")
+
+    return render_template('forgot_password.html')
+
+@app.route('/reset-password', methods=['GET', 'POST'])
+def reset_password():
+    if request.method == 'POST':
+        entered_otp = request.form['otp']
+        new_password = request.form['new_password']
+
+        if entered_otp != session.get('reset_otp'):
+            flash("Invalid OTP. Please try again.", "danger")
+            return render_template("reset_password.html")
+
+        email = session.get('reset_email')
+        role = session.get('reset_role')
+        table = 'students' if role == 'student' else 'faculty'
+
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute(f"UPDATE {table} SET password = %s WHERE email = %s", (new_password, email))
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        session.pop('reset_otp', None)
+        session.pop('reset_email', None)
+        session.pop('reset_role', None)
+
+        flash("Password reset successfully. Please log in.", "success")
+        return redirect(url_for('login'))
+
+    return render_template("reset_password.html")
+
