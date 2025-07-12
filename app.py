@@ -424,7 +424,7 @@ def qr_status(req_id):
     conn = get_connection()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cur.execute("""
-        SELECT gr.status, gr.request_date, s.name
+        SELECT gr.status, s.name, gr.request_date
         FROM gatepass_requests gr
         JOIN students s ON gr.student_id = s.student_id
         WHERE gr.id = %s
@@ -436,5 +436,14 @@ def qr_status(req_id):
     if not data:
         return "Invalid QR", 404
 
-    return render_template("qr_status.html", status=data['status'], name=data['name'], time=data['request_date'])
+    # ✅ Fix logic: green if ACCEPTED, red if REJECTED
+    status_upper = data['status'].upper()
+    bg_color = "#28a745" if status_upper == "ACCEPTED" else "#dc3545"
+
+    return render_template("qr_status_page.html", 
+                           status=status_upper, 
+                           name=data['name'], 
+                           dt=data['request_date'], 
+                           bg=bg_color)
+
 
