@@ -446,21 +446,17 @@ def qr_status(req_id):
     if not data:
         return "Invalid QR or request ID."
 
-    status_upper = data['status'].strip().upper()
+    status_upper = data['status'].upper()
 
-    # ✅ LOGIC FIXED: Green for ACCEPTED, Red for REJECTED
     if status_upper == "ACCEPTED":
-        bg_color = "#28a745"  # ✅ Green
-    else status_upper == "REJECTED":
-        bg_color = "#dc3545"  # ✅ Red
-    
-
-    # Convert to IST
-    ist = pytz.timezone('Asia/Kolkata')
-    dt_ist = data['request_date'].astimezone(ist)
+        bg_color = "#28a745"  # green
+    elif status_upper == "REJECTED":
+        bg_color = "#dc3545"  # red
+    else:
+        bg_color = "#6c757d"  # gray fallback
 
     return render_template("qr_status_page.html",
                            status=status_upper,
                            name=data['name'],
-                           dt=dt_ist,
+                           dt=data['request_date'],
                            bg=bg_color)
