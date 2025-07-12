@@ -1,27 +1,26 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Gatepass Status</title>
-    <style>
-        body {
-            background-color: {{ 'green' if status.lower() == 'accepted' else 'red' }};
-            color: white;
-            font-family: Arial, sans-serif;
-            text-align: center;
-            padding-top: 100px;
-        }
-        h1 {
-            font-size: 80px;
-            margin-bottom: 20px;
-        }
-        p {
-            font-size: 32px;
-        }
-    </style>
-</head>
-<body>
-    <h1>{{ status.upper() }}</h1>
-    <p>{{ name }}</p>
-    <p>{{ time.strftime('%d-%m-%Y %I:%M %p') }}</p>
-</body>
-</html>
+@app.route('/qr-status/<int:req_id>')
+def qr_status(req_id):
+    conn = get_connection()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("""
+        SELECT gr.status, s.name, gr.request_date
+        FROM gatepass_requests gr
+        JOIN students s ON gr.student_id = s.student_id
+        WHERE gr.id = %s
+    """, (req_id,))
+    data = cur.fetchone()
+    cur.close()
+    conn.close()
+
+    if not data:
+        return "Invalid QR", 404
+
+    # ✅ Fix logic: green if ACCEPTED, red if REJECTED
+    status_upper = data['status'].upper()
+    bg_color = "#28a745" if status_upper == "ACCEPTED" else "#dc3545"
+
+    return render_template("qr_status_page.html", 
+                           status=status_upper, 
+                           name=data['name'], 
+                           dt=data['request_date'], 
+                           bg=bg_color)
