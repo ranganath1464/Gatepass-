@@ -444,7 +444,7 @@ def qr_status(req_id):
         return "Invalid QR or request ID."
 
     status_upper = data['status'].upper()
-    bg_color = "#28a745" if status_upper == "ACCEPTED" else "#dc3545"  # Green or Red
+    bg_color = "#dc3545" if status_upper == "ACCEPTED" else "#28a745"  # Green or Red
 
     return render_template("qr_status_page.html",
                            status=status_upper,
