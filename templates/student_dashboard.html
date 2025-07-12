@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Student Dashboard</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
   <style>
@@ -23,7 +24,8 @@
       display: flex;
       align-items: center;
       gap: 15px;
-      justify-content: center; /* center horizontally */
+      justify-content: center;
+      flex-wrap: wrap;
       text-align: center;
       color: white;
     }
@@ -34,13 +36,6 @@
       height: 60px;
       border-radius: 5px;
       flex-shrink: 0;
-    }
-
-    .header-content h2,
-    .header-content p {
-      margin: 0;
-      line-height: 1.2;
-      color: white;
     }
 
     .container {
@@ -54,21 +49,33 @@
 
     h2, h4 {
       text-align: center;
+      margin-bottom: 5px;
+    }
+
+    .student-meta {
+      text-align: center;
+      font-size: 15px;
+      color: #444;
+      margin-bottom: 25px;
     }
 
     .top-buttons {
       display: flex;
       justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 15px;
       margin: 20px 0;
     }
 
     .btn {
-      padding: 10px 15px;
+      padding: 10px 20px;
       background: #007bff;
       color: white;
       text-decoration: none;
       border-radius: 5px;
-      font-size: 14px;
+      font-size: 15px;
+      text-align: center;
+      flex: 1 1 45%;
     }
 
     .btn:hover {
@@ -83,6 +90,7 @@
       width: 100%;
       border-collapse: collapse;
       margin-top: 15px;
+      font-size: 15px;
     }
 
     th, td {
@@ -109,14 +117,49 @@
       color: orange;
       font-weight: bold;
     }
+
+    @media (max-width: 768px) {
+      .container {
+        margin: 20px 10px;
+        padding: 20px;
+      }
+
+      .top-buttons {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .btn {
+        width: 100%;
+      }
+
+      .header-content {
+        flex-direction: column;
+      }
+
+      .header-content h2 {
+        font-size: 18px;
+      }
+
+      .header-content p {
+        font-size: 14px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      th, td {
+        font-size: 13px;
+        padding: 8px;
+      }
+    }
   </style>
 </head>
 <body>
 
-  <!-- Blue Header with College Info -->
+  <!-- Header -->
   <div class="header">
     <div class="header-content">
-      <img src="{{ url_for('static', filename="logo.jpg") }}" alt="College Logo">
+      <img src="{{ url_for('static', filename='logo.jpg') }}" alt="College Logo">
       <div>
         <h2>St. JOHNS COLLEGE OF ENGINEERING & TECHNOLOGY</h2>
         <p>Yerrakota, YEMMIGANUR – Kurnool Dt., Andhra Pradesh</p>
@@ -124,9 +167,12 @@
     </div>
   </div>
 
-  <!-- Dashboard Container -->
+  <!-- Dashboard -->
   <div class="container">
     <h2>Welcome, {{ student['name'] }} ({{ student['student_id'] }})</h2>
+    <div class="student-meta">
+      Year: {{ student['year'] }} | Semester: {{ student['semester'] }}
+    </div>
 
     <div class="top-buttons">
       <a href="{{ url_for('student_gatepass') }}" class="btn">Request Gatepass</a>
@@ -150,8 +196,8 @@
         <tr>
           <td>{{ req['reason'] }}</td>
           <td class="status-{{ req['status'] | lower }}">{{ req['status'] }}</td>
-         <td>{{ req['request_date'].strftime('%d-%m-%Y %I:%M %p') }}</td>
-         <td>{{ req['faculty_remark'] if req['faculty_remark'] else 'Pending' }}</td>
+          <td>{{ req['request_date'].strftime('%d-%m-%Y %I:%M %p') }}</td>
+          <td>{{ req['faculty_remark'] if req['faculty_remark'] else 'Pending' }}</td>
         </tr>
         {% endfor %}
       </tbody>
