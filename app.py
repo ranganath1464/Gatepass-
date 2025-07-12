@@ -10,6 +10,7 @@ import pytz
 app = Flask(__name__)
 app.secret_key = "supersecretkey"
 
+# ---------------- EMAIL UTILITY ----------------
 def send_email(receiver_email, subject, body):
     sender_email = os.environ.get("EMAIL_USER")
     app_password = os.environ.get("EMAIL_PASSWORD")
@@ -19,6 +20,7 @@ def send_email(receiver_email, subject, body):
         server.login(sender_email, app_password)
         server.sendmail(sender_email, receiver_email, message)
 
+# ---------------- ROUTES ----------------
 @app.route('/')
 def home():
     return redirect(url_for('login'))
@@ -152,12 +154,20 @@ def faculty_dashboard():
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cur.execute("SELECT * FROM faculty WHERE email = %s", (email,))
     faculty = cur.fetchone()
+
+    cur.execute("""
+        SELECT * FROM gatepass_requests gr
+        JOIN students s ON gr.student_id = s.student_id
+        WHERE s.branch = %s
+        ORDER BY gr.request_date DESC
+    """, (branch,))
+    requests = cur.fetchall()
+
     cur.close()
     conn.close()
 
-    return render_template('faculty_dashboard.html', faculty=faculty)
+    return render_template('faculty_dashboard.html', faculty=faculty, requests=requests)
 
-# ✅ FIXED function name to match student_dashboard.html
 @app.route('/gatepass/request', methods=['GET', 'POST'])
 def student_gatepass():
     if 'email' not in session or session.get('role') != 'student':
@@ -167,9 +177,7 @@ def student_gatepass():
     student_email = session['email']
     conn = get_connection()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-
-    # ✅ Fetch student info
-    cur.execute("SELECT student_id, name FROM students WHERE email = %s", (student_email,))
+    cur.execute("SELECT student_id, name, branch FROM students WHERE email = %s", (student_email,))
     student = cur.fetchone()
 
     if request.method == 'POST':
@@ -180,6 +188,18 @@ def student_gatepass():
             INSERT INTO gatepass_requests (student_id, reason, status, request_date)
             VALUES (%s, %s, 'Pending', %s)
         """, (student['student_id'], reason, request_date))
+
+        # Notify respective branch faculty
+        cur.execute("SELECT email FROM faculty WHERE branch = %s", (student['branch'],))
+        faculty = cur.fetchone()
+        if faculty:
+            subject = f"New Gatepass Request from {student['name']}"
+            body = f"Student {student['name']} from {student['branch']} has submitted a gatepass request.\n\nReason: {reason}\nDate: {request_date.strftime('%Y-%m-%d %H:%M:%S')}"
+            try:
+                send_email(faculty['email'], subject, body)
+            except Exception as e:
+                flash("Gatepass request saved but failed to notify faculty.")
+
         conn.commit()
         cur.close()
         conn.close()
@@ -188,10 +208,7 @@ def student_gatepass():
 
     cur.close()
     conn.close()
-    
-    # ✅ Pass student to the template
     return render_template('gatepass_form.html', student=student)
-
 
 @app.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
