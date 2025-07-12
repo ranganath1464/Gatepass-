@@ -2,9 +2,14 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Faculty Dashboard</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <style>
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       font-family: Arial, sans-serif;
       background-color: #f5f5f5;
@@ -13,22 +18,23 @@
     }
 
     .header {
-      background-color: #003a91; /* updated header bg color */
+      background-color: #003a91;
       padding: 15px 30px;
     }
 
     .header-content {
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
       gap: 15px;
       max-width: 1200px;
       margin: 0 auto;
-      justify-content: center; /* center horizontally */
-      text-align: center;      /* center text inside */
+      justify-content: center;
+      text-align: center;
     }
 
     .header img {
-      background-color: #003a91; /* background behind logo */
+      background-color: #003a91;
       padding: 6px;
       height: 60px;
       border-radius: 5px;
@@ -39,9 +45,14 @@
       color: white;
     }
 
-    .header_text h1, .header_text h3 {
+    .header_text h1 {
       margin: 0;
-      line-height: 1.2;
+      font-size: 22px;
+    }
+
+    .header_text h3 {
+      margin: 0;
+      font-size: 14px;
     }
 
     .container {
@@ -77,6 +88,8 @@
       width: 100%;
       border-collapse: collapse;
       margin-bottom: 30px;
+      overflow-x: auto;
+      display: block;
     }
 
     th, td {
@@ -99,6 +112,7 @@
       display: flex;
       gap: 10px;
       justify-content: center;
+      flex-wrap: wrap;
     }
 
     textarea {
@@ -126,6 +140,53 @@
     .btn-danger {
       background-color: #dc3545;
       color: white;
+    }
+
+    /* 🔁 Mobile Responsive */
+    @media (max-width: 768px) {
+      .header-content {
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .header img {
+        height: 50px;
+      }
+
+      .header_text h1 {
+        font-size: 18px;
+      }
+
+      .header_text h3 {
+        font-size: 12px;
+      }
+
+      th, td {
+        font-size: 12px;
+        padding: 8px;
+      }
+
+      textarea {
+        font-size: 13px;
+      }
+
+      .btn {
+        font-size: 13px;
+      }
+
+      .container {
+        padding: 20px;
+        width: 90%;
+      }
+
+      .logout {
+        text-align: center;
+        margin-bottom: 20px;
+      }
+
+      h2 {
+        font-size: 18px;
+      }
     }
   </style>
 </head>
@@ -174,8 +235,7 @@
               <td><strong>{{ req['status'] }}</strong></td>
               <td>{{ req['faculty_remark'] or '-' }}</td>
               <td>{{ req['request_date'].strftime('%d-%m-%Y %I:%M %p') }}</td>
-
-               <td>
+              <td>
                 {% if req['status'] == 'Pending' %}
                   <form method="POST" action="{{ url_for('faculty_approve', req_id=req['id']) }}">
                     <textarea name="remark" placeholder="Add remark..." required></textarea>
