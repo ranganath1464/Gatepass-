@@ -163,15 +163,19 @@ def student_gatepass():
     if 'email' not in session or session.get('role') != 'student':
         flash("Unauthorized access.")
         return redirect(url_for('login'))
+
+    student_email = session['email']
+    conn = get_connection()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    # ✅ Fetch student info
+    cur.execute("SELECT student_id, name FROM students WHERE email = %s", (student_email,))
+    student = cur.fetchone()
+
     if request.method == 'POST':
         reason = request.form['reason']
-        student_email = session['email']
-        branch = session['branch']
-        conn = get_connection()
-        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        cur.execute("SELECT student_id, name FROM students WHERE email = %s", (student_email,))
-        student = cur.fetchone()
         request_date = datetime.now(pytz.timezone('Asia/Kolkata'))
+
         cur.execute("""
             INSERT INTO gatepass_requests (student_id, reason, status, request_date)
             VALUES (%s, %s, 'Pending', %s)
@@ -181,7 +185,13 @@ def student_gatepass():
         conn.close()
         flash("Gatepass request submitted.")
         return redirect(url_for('student_dashboard'))
-    return render_template('gatepass_form.html')
+
+    cur.close()
+    conn.close()
+    
+    # ✅ Pass student to the template
+    return render_template('gatepass_form.html', student=student)
+
 
 @app.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
