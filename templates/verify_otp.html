@@ -1,27 +1,37 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Gatepass System | Verify OTP</title>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;600&display=swap" rel="stylesheet">
   <style>
-    * { box-sizing: border-box; font-family: 'Poppins', sans-serif; }
-    body { background: #f0f4f8; margin: 0; padding: 0; }
+    * {
+      box-sizing: border-box;
+      font-family: 'Poppins', sans-serif;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #f0f4f8;
+    }
 
     .developed-by {
       position: absolute;
-      top: 5px;
+      top: 8px;
       right: 20px;
-      font-size: 20px;
+      font-size: 16px;
       font-weight: bold;
       color: white;
       z-index: 1000;
     }
 
     .header {
-      background: #003a91;
+      background-color: #003a91;
+      padding: 15px 10px;
       color: white;
-      padding: 20px;
+      text-align: center;
     }
 
     .header-content {
@@ -29,53 +39,55 @@
       align-items: center;
       justify-content: center;
       flex-wrap: wrap;
-      gap: 20px;
+      gap: 15px;
     }
 
     .header-content img {
-      width: 77px;
+      width: 60px;
       height: auto;
     }
 
     .header_text h1 {
       margin: 0;
-      font-size: 22px;
+      font-size: 18px;
     }
 
     .header_text h3 {
-      margin: 5px 0 0 0;
+      margin-top: 5px;
+      font-size: 13px;
       font-weight: normal;
-      font-size: 14px;
     }
 
     .form-container {
-      max-width: 500px;
-      margin: 40px auto;
+      max-width: 480px;
+      margin: 30px auto;
       background: white;
       border-radius: 12px;
-      padding: 30px;
-      box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+      padding: 25px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
     }
 
     .form-container h2 {
       text-align: center;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
+      font-size: 22px;
       color: #0047ab;
     }
 
     .form-container p {
       text-align: center;
-      margin-bottom: 25px;
       color: #666;
+      margin-bottom: 20px;
+      font-size: 14px;
     }
 
     .form-group {
-      margin-bottom: 20px;
+      margin-bottom: 18px;
     }
 
     label {
       display: block;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
       font-weight: 500;
       color: #333;
     }
@@ -83,9 +95,9 @@
     input {
       width: 100%;
       padding: 12px;
+      font-size: 15px;
       border: 1px solid #ccc;
       border-radius: 8px;
-      font-size: 15px;
     }
 
     .btn {
@@ -97,6 +109,7 @@
       border-radius: 8px;
       font-size: 16px;
       cursor: pointer;
+      margin-top: 10px;
     }
 
     .btn:hover {
@@ -106,9 +119,10 @@
     .flashes {
       color: red;
       margin-bottom: 10px;
-      list-style: none;
       padding: 0;
       text-align: center;
+      font-size: 14px;
+      list-style: none;
     }
 
     .login-link {
@@ -117,7 +131,7 @@
     }
 
     .login-link a {
-      color: #0047AB;
+      color: #0047ab;
       text-decoration: none;
       font-weight: 500;
     }
@@ -131,23 +145,47 @@
       margin-bottom: 20px;
       color: #444;
       font-weight: 500;
-      font-size: 15px;
+      font-size: 14px;
     }
 
     .date-time .time {
       font-weight: 600;
-      font-size: 17px;
+      font-size: 16px;
+    }
+
+    @media (max-width: 480px) {
+      .form-container {
+        margin: 20px 15px;
+        padding: 20px;
+      }
+
+      .header-content img {
+        width: 50px;
+      }
+
+      .header_text h1 {
+        font-size: 16px;
+      }
+
+      .header_text h3 {
+        font-size: 12px;
+      }
+
+      .developed-by {
+        font-size: 13px;
+        top: 10px;
+        right: 10px;
+      }
     }
   </style>
 </head>
 <body>
 
-  <!-- Top Right Label -->
   <div class="developed-by">Developed by <strong>RAVS</strong></div>
 
   <div class="header">
     <div class="header-content">
-      <img src="{{ url_for('static', filename='logo.jpg') }}" alt="College Logo">
+      <img src="{{ url_for('static', filename='logo.jpg') }}" alt="College Logo" />
       <div class="header_text">
         <h1>St. JOHNS COLLEGE OF ENGINEERING & TECHNOLOGY</h1>
         <h3>Yerrakota, YEMMIGANUR – Kurnool Dt., Andhra Pradesh</h3>
@@ -177,7 +215,7 @@
     <form method="POST">
       <div class="form-group">
         <label for="otp">Enter OTP</label>
-        <input type="text" name="otp" id="otp" required placeholder="e.g. 123456">
+        <input type="text" id="otp" name="otp" placeholder="e.g. 123456" required maxlength="6" pattern="\d{6}" title="Please enter a valid 6-digit OTP">
       </div>
 
       <button type="submit" class="btn">Verify</button>
