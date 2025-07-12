@@ -38,7 +38,6 @@ def register():
         email = request.form['email']
         password = request.form['password']
 
-        # Optional field length validations
         if len(student_id) > 20:
             return render_template('register.html', error="Student ID must be at most 20 characters.")
         if len(email) > 100:
@@ -50,10 +49,8 @@ def register():
 
         conn = get_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-
         cur.execute("SELECT * FROM students WHERE email = %s", (email,))
         existing_user = cur.fetchone()
-
         if existing_user:
             cur.close()
             conn.close()
@@ -62,14 +59,9 @@ def register():
         otp = str(random.randint(100000, 999999))
         session['otp'] = otp
         session['pending_user'] = {
-            'name': name,
-            'branch': branch,
-            'year': year,
-            'semester': semester,
-            'student_id': student_id,
-            'mobile': mobile,
-            'email': email,
-            'password': password
+            'name': name, 'branch': branch, 'year': year,
+            'semester': semester, 'student_id': student_id,
+            'mobile': mobile, 'email': email, 'password': password
         }
 
         subject = "Your OTP for Gatepass Registration"
@@ -148,3 +140,88 @@ def login():
             error = "Invalid credentials."
 
     return render_template("login.html", error=error)
+
+# ---------------- FORGOT PASSWORD ----------------
+@app.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    if request.method == 'POST':
+        email = request.form['email'].strip()
+        role = request.form['role']
+        table = 'students' if role == 'student' else 'faculty'
+
+        conn = get_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute(f"SELECT * FROM {table} WHERE email = %s", (email,))
+        user = cur.fetchone()
+        cur.close()
+        conn.close()
+
+        if not user:
+            flash("No account found with that email.")
+            return render_template('forgot_password.html')
+
+        otp = str(random.randint(100000, 999999))
+        session['reset_otp'] = otp
+        session['reset_email'] = email
+        session['reset_role'] = role
+
+        subject = "Password Reset OTP - Gatepass System"
+        body = f"""
+Dear {user['name']},
+
+Your OTP for password reset is: {otp}
+
+If you did not request this, please ignore this email.
+
+Regards,
+Gatepass System
+        """
+
+        try:
+            send_email(email, subject, body)
+            flash("OTP sent to your email address.")
+            return redirect(url_for('reset_password'))
+        except Exception as e:
+            flash("Failed to send OTP email: " + str(e))
+
+    return render_template('forgot_password.html')
+
+# ---------------- RESET PASSWORD ----------------
+@app.route('/reset-password', methods=['GET', 'POST'])
+def reset_password():
+    if request.method == 'POST':
+        entered_otp = request.form['otp']
+        new_password = request.form['new_password']
+
+        if entered_otp != session.get('reset_otp'):
+            flash("Invalid OTP. Please try again.")
+            return render_template("reset_password.html")
+
+        email = session.get('reset_email')
+        role = session.get('reset_role')
+        table = 'students' if role == 'student' else 'faculty'
+
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute(f"UPDATE {table} SET password = %s WHERE email = %s", (new_password, email))
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        session.pop('reset_otp', None)
+        session.pop('reset_email', None)
+        session.pop('reset_role', None)
+
+        flash("Password reset successfully. Please log in.")
+        return redirect(url_for('login'))
+
+    return render_template("reset_password.html")
+
+# ---------------- LOGOUT ----------------
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('login'))
+
+if __name__ == '__main__':
+    app.run(debug=True)
