@@ -263,6 +263,7 @@ def faculty_dashboard():
 
 
 # ---------------- APPROVE/REJECT ----------------
+
 @app.route('/faculty/approve/<int:req_id>', methods=['POST'])
 def faculty_approve(req_id):
     if session.get('role') != 'faculty':
@@ -273,6 +274,8 @@ def faculty_approve(req_id):
 
     conn = get_connection()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    # Fetch request + student data
     cur.execute("""
         SELECT gr.*, s.name, s.email, s.student_id, gr.request_date
         FROM gatepass_requests gr
@@ -282,6 +285,7 @@ def faculty_approve(req_id):
     data = cur.fetchone()
 
     if data:
+        # Update DB with new status and remark
         cur.execute("""
             UPDATE gatepass_requests
             SET status=%s, faculty_remark=%s
@@ -289,16 +293,17 @@ def faculty_approve(req_id):
         """, (status, remark, req_id))
         conn.commit()
 
+        # Create QR with URL
+        qr_url = f"https://gatepass-system-gmz7.onrender.com/qr-status/{req_id}"
+        qr = qrcode.make(qr_url)
+        buffered = BytesIO()
+        qr.save(buffered, format="PNG")
+        qr_base64 = base64.b64encode(buffered.getvalue()).decode()
+
+        # Date formatting
         ist = pytz.timezone('Asia/Kolkata')
         req_dt = data['request_date'].astimezone(ist)
         now_dt = datetime.now(pytz.utc).astimezone(ist)
-
-        # ✅ Generate QR code URL
-        qr_url = url_for('qr_status', req_id=req_id, _external=True)
-        qr = qrcode.make(qr_url)
-        img_buffer = BytesIO()
-        qr.save(img_buffer, format='PNG')
-        img_data = base64.b64encode(img_buffer.getvalue()).decode()
 
         subject = f"Gatepass {status.upper()} - Gatepass System"
         body = f"""
@@ -316,16 +321,17 @@ Approved On:
 Date: {now_dt.strftime('%d-%m-%Y')}, {now_dt.strftime('%A')}
 Time: {now_dt.strftime('%I:%M %p')}
 
-Scan this QR to verify your status:
+Scan QR Code to view gatepass status:
 {qr_url}
 
 Regards,
 Gatepass System
         """
+
         try:
             send_email(data['email'], subject, body)
         except Exception as e:
-            flash("Request updated, but email notification failed: " + str(e))
+            flash("Request updated, but email failed: " + str(e))
 
     cur.close()
     conn.close()
@@ -419,6 +425,7 @@ def reset_password():
         return redirect(url_for('login'))
 
     return render_template("reset_password.html")
+
 @app.route('/qr-status/<int:req_id>')
 def qr_status(req_id):
     conn = get_connection()
@@ -434,11 +441,17 @@ def qr_status(req_id):
     conn.close()
 
     if not data:
-        return "Invalid QR", 404
+        return "Invalid QR or request ID."
 
-    # ✅ Fix logic: green if ACCEPTED, red if REJECTED
     status_upper = data['status'].upper()
-    bg_color = "#28a745" if status_upper == "ACCEPTED" else "#dc3545"
+    bg_color = "#28a745" if status_upper == "ACCEPTED" else "#dc3545"  # Green or Red
+
+    return render_template("qr_status_page.html",
+                           status=status_upper,
+                           name=data['name'],
+                           dt=data['request_date'],
+                           bg=bg_color)
+
 
     return render_template("qr_status_page.html", 
                            status=status_upper, 
