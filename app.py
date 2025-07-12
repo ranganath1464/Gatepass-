@@ -38,7 +38,7 @@ def register():
         email = request.form['email']
         password = request.form['password']
 
-        if len(student_id) > 20:
+        if len(student_id) > 40:
             return render_template('register.html', error="Student ID must be at most 20 characters.")
         if len(email) > 100:
             return render_template('register.html', error="Email must be at most 100 characters.")
