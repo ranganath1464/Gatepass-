@@ -21,6 +21,7 @@ def send_email(receiver_email, subject, body):
         server.login(sender_email, app_password)
         server.sendmail(sender_email, receiver_email, message)
 
+# ---------------- HOME REDIRECT ----------------
 @app.route('/')
 def home():
     return redirect(url_for('login'))
@@ -39,7 +40,7 @@ def register():
         password = request.form['password']
 
         if len(student_id) > 40:
-            return render_template('register.html', error="Student ID must be at most 20 characters.")
+            return render_template('register.html', error="Student ID must be at most 40 characters.")
         if len(email) > 100:
             return render_template('register.html', error="Email must be at most 100 characters.")
         if len(mobile) > 15:
@@ -119,23 +120,21 @@ def verify_otp():
 def login():
     error = None
     if request.method == 'POST':
-        role = request.form['role']
         email = request.form['email'].strip()
         password = request.form['password'].strip()
-        table = 'students' if role == 'student' else 'faculty'
 
         conn = get_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        cur.execute(f"SELECT * FROM {table} WHERE email=%s", (email,))
+        cur.execute("SELECT * FROM students WHERE email=%s", (email,))
         user = cur.fetchone()
         cur.close()
         conn.close()
 
         if user and user['password'] == password:
             session['email'] = email
-            session['role'] = role
+            session['role'] = 'student'
             session['branch'] = user['branch']
-            return redirect(url_for(f"{role}_dashboard"))
+            return redirect(url_for("student_dashboard"))
         else:
             error = "Invalid credentials."
 
@@ -146,12 +145,10 @@ def login():
 def forgot_password():
     if request.method == 'POST':
         email = request.form['email'].strip()
-        role = request.form['role']
-        table = 'students' if role == 'student' else 'faculty'
 
         conn = get_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        cur.execute(f"SELECT * FROM {table} WHERE email = %s", (email,))
+        cur.execute("SELECT * FROM students WHERE email = %s", (email,))
         user = cur.fetchone()
         cur.close()
         conn.close()
@@ -163,7 +160,6 @@ def forgot_password():
         otp = str(random.randint(100000, 999999))
         session['reset_otp'] = otp
         session['reset_email'] = email
-        session['reset_role'] = role
 
         subject = "Password Reset OTP - Gatepass System"
         body = f"""
@@ -198,24 +194,32 @@ def reset_password():
             return render_template("reset_password.html")
 
         email = session.get('reset_email')
-        role = session.get('reset_role')
-        table = 'students' if role == 'student' else 'faculty'
 
         conn = get_connection()
         cur = conn.cursor()
-        cur.execute(f"UPDATE {table} SET password = %s WHERE email = %s", (new_password, email))
+        cur.execute("UPDATE students SET password = %s WHERE email = %s", (new_password, email))
         conn.commit()
         cur.close()
         conn.close()
 
         session.pop('reset_otp', None)
         session.pop('reset_email', None)
-        session.pop('reset_role', None)
 
         flash("Password reset successfully. Please log in.")
         return redirect(url_for('login'))
 
     return render_template("reset_password.html")
+
+# ---------------- STUDENT DASHBOARD ----------------
+@app.route('/student_dashboard')
+def student_dashboard():
+    if 'email' not in session or session.get('role') != 'student':
+        return redirect(url_for('login'))
+
+    email = session['email']
+    branch = session['branch']
+
+    return render_template('student_dashboard.html', email=email, branch=branch)
 
 # ---------------- LOGOUT ----------------
 @app.route('/logout')
@@ -223,5 +227,6 @@ def logout():
     session.clear()
     return redirect(url_for('login'))
 
+# ---------------- RUN APP ----------------
 if __name__ == '__main__':
     app.run(debug=True)
