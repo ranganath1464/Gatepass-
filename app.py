@@ -363,7 +363,7 @@ You have requested to reset your Gatepass System password.
 
 Your OTP is: {otp}
 
-If you didn’t request this, please ignore this email.
+If you didn't request this, please ignore this email.
 
 Regards,
 Gatepass System
