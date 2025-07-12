@@ -450,11 +450,10 @@ def qr_status(req_id):
 
     # ✅ LOGIC FIXED: Green for ACCEPTED, Red for REJECTED
     if status_upper == "ACCEPTED":
-        bg_color = "#008000"  # ✅ Green
-    elif status_upper == "REJECTED":
+        bg_color = "#28a745"  # ✅ Green
+    else status_upper == "REJECTED":
         bg_color = "#dc3545"  # ✅ Red
-    else:
-        bg_color = "#6c757d"  # Gray for unknown status
+    
 
     # Convert to IST
     ist = pytz.timezone('Asia/Kolkata')
