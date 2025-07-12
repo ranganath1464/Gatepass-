@@ -126,10 +126,18 @@ def student_dashboard():
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cur.execute("SELECT * FROM students WHERE email = %s", (email,))
     student = cur.fetchone()
+
+    cur.execute("""
+        SELECT * FROM gatepass_requests
+        WHERE student_id = %s
+        ORDER BY request_date DESC
+    """, (student['student_id'],))
+    requests = cur.fetchall()
+
     cur.close()
     conn.close()
 
-    return render_template('student_dashboard.html', student=student)
+    return render_template('student_dashboard.html', student=student, requests=requests)
 
 @app.route('/faculty/dashboard')
 def faculty_dashboard():
@@ -149,8 +157,9 @@ def faculty_dashboard():
 
     return render_template('faculty_dashboard.html', faculty=faculty)
 
+# ✅ FIXED function name to match student_dashboard.html
 @app.route('/gatepass/request', methods=['GET', 'POST'])
-def gatepass_request():
+def student_gatepass():
     if 'email' not in session or session.get('role') != 'student':
         flash("Unauthorized access.")
         return redirect(url_for('login'))
