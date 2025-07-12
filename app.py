@@ -452,7 +452,9 @@ def qr_status(req_id):
 
     # Fix background logic
     status_upper = data['status'].upper()
-    bg_color = "#28a745" if status_upper == "ACCEPTED" else "#dc3545"  # Green if accepted, Red if rejected
+
+# ✅ Green if ACCEPTED, Red if REJECTED
+bg_color = "#28a745" if status_upper == "ACCEPTED" else "#dc3545"
 
     return render_template("qr_status_page.html",
                            status=status_upper,
