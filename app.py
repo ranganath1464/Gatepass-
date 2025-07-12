@@ -26,36 +26,41 @@ def home():
     return redirect(url_for('login'))
 
 # ---------------- REGISTER ----------------
+from flask import Flask, render_template, request, redirect, flash, url_for
+import psycopg2  # or use your DB connector
+
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    branches = ['CSE', 'ECE', 'EEE', 'MECH', 'CIVIL', 'CAI', 'CSD']
     if request.method == 'POST':
         name = request.form['name']
         branch = request.form['branch']
+        student_id = request.form['student_id']
+        mobile = request.form['mobile']
         email = request.form['email']
-        mobile = request.form.get('mobile') or None
         password = request.form['password']
-        student_id = request.form.get('student_id') or None
 
-        otp = str(random.randint(100000, 999999))
-        session['otp'] = otp
-        session['pending_user'] = {
-            'name': name,
-            'branch': branch,
-            'email': email,
-            'mobile': mobile,
-            'password': password,
-            'student_id': student_id
-        }
+        # Connect to your DB
+        conn = psycopg2.connect(...)  # Replace with your DB config
+        cur = conn.cursor()
 
-        try:
-            send_email(email, "Your OTP Verification Code", f"Your OTP is: {otp}")
-            flash("OTP sent to your email. Please verify.")
-            return redirect(url_for('verify_otp'))
-        except Exception as e:
-            flash(f"Failed to send OTP: {e}")
+        # Check if email already exists
+        cur.execute("SELECT * FROM users WHERE email = %s", (email,))
+        existing_user = cur.fetchone()
 
-    return render_template("register.html", branches=branches)
+        if existing_user:
+            # Show error message
+            return render_template('register.html', error="Email is already in use.")
+
+        # Insert new user if email not found
+        cur.execute("INSERT INTO users (name, branch, student_id, mobile, email, password) VALUES (%s, %s, %s, %s, %s, %s)",
+                    (name, branch, student_id, mobile, email, password))
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        return redirect(url_for('login'))  # or dashboard
+
+    return render_template('register.html')
 
 # ---------------- VERIFY OTP ----------------
 @app.route('/verify-otp', methods=['GET', 'POST'])
