@@ -131,7 +131,6 @@ def student_dashboard():
 
     return render_template('student_dashboard.html', student=student)
 
-
 @app.route('/faculty/dashboard')
 def faculty_dashboard():
     if 'email' not in session or session.get('role') != 'faculty':
