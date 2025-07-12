@@ -1,26 +1,21 @@
-@app.route('/qr-status/<int:req_id>')
-def qr_status(req_id):
-    conn = get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute("""
-        SELECT gr.status, s.name, gr.request_date
-        FROM gatepass_requests gr
-        JOIN students s ON gr.student_id = s.student_id
-        WHERE gr.id = %s
-    """, (req_id,))
-    data = cur.fetchone()
-    cur.close()
-    conn.close()
-
-    if not data:
-        return "Invalid QR", 404
-
-    # ✅ Fix logic: green if ACCEPTED, red if REJECTED
-    status_upper = data['status'].upper()
-    bg_color = "#28a745" if status_upper == "ACCEPTED" else "#dc3545"
-
-    return render_template("qr_status_page.html", 
-                           status=status_upper, 
-                           name=data['name'], 
-                           dt=data['request_date'], 
-                           bg=bg_color)
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Status - {{ status }}</title>
+    <style>
+        body {
+            background-color: {{ bg }};
+            color: white;
+            text-align: center;
+            font-size: 3em;
+            padding-top: 100px;
+            font-family: Arial, sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <div>{{ status }}</div>
+    <div>{{ name }}</div>
+    <div>{{ dt.strftime("%d-%m-%Y %I:%M %p") }}</div>
+</body>
+</html>
