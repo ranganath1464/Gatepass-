@@ -1,109 +1,178 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Verify OTP</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <style>
-        body {
-            font-family: 'Poppins', sans-serif;
-            background: #f0f4f8;
-            margin: 0;
-            padding: 0;
-        }
+  <meta charset="UTF-8">
+  <title>Gatepass System | Verify OTP</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;600&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+    body { background: #f0f4f8; margin: 0; padding: 0; }
 
-        .container {
-            width: 400px;
-            margin: 80px auto;
-            padding: 30px;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
-        }
+    .developed-by {
+      position: absolute;
+      top: 5px;
+      right: 20px;
+      font-size: 20px;
+      font-weight: bold;
+      color: white;
+      z-index: 1000;
+    }
 
-        h2 {
-            text-align: center;
-            margin-bottom: 20px;
-            color: #0047ab;
-        }
+    .header {
+      background: #003a91;
+      color: white;
+      padding: 20px;
+    }
 
-        label {
-            display: block;
-            margin-bottom: 8px;
-            color: #333;
-            font-weight: 500;
-        }
+    .header-content {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
 
-        input {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #ccc;
-            border-radius: 8px;
-            margin-bottom: 15px;
-            font-size: 15px;
-        }
+    .header-content img {
+      width: 77px;
+      height: auto;
+    }
 
-        button {
-            background-color: #0047ab;
-            color: white;
-            padding: 12px;
-            width: 100%;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            cursor: pointer;
-        }
+    .header_text h1 {
+      margin: 0;
+      font-size: 22px;
+    }
 
-        button:hover {
-            background-color: #003a91;
-        }
+    .header_text h3 {
+      margin: 5px 0 0 0;
+      font-weight: normal;
+      font-size: 14px;
+    }
 
-        .flashes {
-            color: red;
-            margin-bottom: 10px;
-            list-style: none;
-            padding: 0;
-        }
+    .form-container {
+      max-width: 500px;
+      margin: 40px auto;
+      background: white;
+      border-radius: 12px;
+      padding: 30px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+    }
 
-        .date-time {
-            text-align: center;
-            margin-bottom: 20px;
-            color: #444;
-            font-weight: 500;
-            font-size: 15px;
-        }
+    .form-container h2 { text-align: center; margin-bottom: 10px; color: #0047ab; }
+    .form-container p { text-align: center; margin-bottom: 25px; color: #666; }
 
-        .date-time .time {
-            font-weight: 600;
-            font-size: 17px;
-        }
-    </style>
+    .form-group { margin-bottom: 20px; }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+      color: #333;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      font-size: 15px;
+    }
+
+    .btn {
+      background-color: #0047ab;
+      color: white;
+      padding: 12px;
+      width: 100%;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    .btn:hover {
+      background-color: #003a91;
+    }
+
+    .flashes {
+      color: red;
+      margin-bottom: 10px;
+      list-style: none;
+      padding: 0;
+      text-align: center;
+    }
+
+    .date-time {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #444;
+      font-weight: 500;
+      font-size: 15px;
+    }
+
+    .date-time .time {
+      font-weight: 600;
+      font-size: 17px;
+    }
+
+    .login-link {
+      text-align: center;
+      margin-top: 10px;
+    }
+
+    .login-link a {
+      color: #0047AB;
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .login-link a:hover { text-decoration: underline; }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h2>Verify OTP</h2>
 
-        <!-- IST Date and Time Display -->
-        <div class="date-time">
-            <div>Date: {{ date_day }}</div>
-            <div class="time">Time: {{ time }}</div>
-        </div>
+  <div class="developed-by">Developed by <strong>RAVS</strong></div>
 
-        {% with messages = get_flashed_messages() %}
-          {% if messages %}
-            <ul class="flashes">
-              {% for message in messages %}
-                <li>{{ message }}</li>
-              {% endfor %}
-            </ul>
-          {% endif %}
-        {% endwith %}
-
-        <form method="POST">
-            <label>Enter OTP sent to your email:</label>
-            <input type="text" name="otp" required placeholder="e.g. 123456">
-            <button type="submit">Verify</button>
-        </form>
+  <div class="header">
+    <div class="header-content">
+      <img src="{{ url_for('static', filename='logo.jpg') }}" alt="College Logo">
+      <div class="header_text">
+        <h1>St. JOHNS COLLEGE OF ENGINEERING & TECHNOLOGY</h1>
+        <h3>Yerrakota, YEMMIGANUR – Kurnool Dt., Andhra Pradesh</h3>
+      </div>
     </div>
+  </div>
+
+  <div class="form-container">
+    <h2>Verify OTP</h2>
+
+    <div class="date-time">
+      <div>Date: {{ date_day }}</div>
+      <div class="time">Time: {{ time }}</div>
+    </div>
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <ul class="flashes">
+          {% for message in messages %}
+            <li>{{ message }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+
+    <form method="POST">
+      <div class="form-group">
+        <label>Enter OTP sent to your email:</label>
+        <input type="text" name="otp" required placeholder="e.g. 123456">
+      </div>
+
+      <button type="submit" class="btn">Verify</button>
+
+      <div class="login-link">
+        <p><a href="{{ url_for('login') }}">Back to Login</a></p>
+      </div>
+    </form>
+  </div>
+
 </body>
 </html>
