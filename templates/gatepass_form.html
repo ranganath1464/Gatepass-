@@ -2,112 +2,205 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Gatepass Request</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gatepass System | Request Form</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;600&display=swap" rel="stylesheet">
   <style>
     * {
       box-sizing: border-box;
+      font-family: 'Poppins', sans-serif;
     }
 
     body {
+      background: #f0f4f8;
       margin: 0;
-      font-family: Arial, sans-serif;
-      background: linear-gradient(135deg, #003a91, #0050b3);
-      height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
+      padding: 0;
+    }
+
+    .developed-by {
+      position: absolute;
+      top: 5px;
+      right: 20px;
+      font-size: 16px;
+      font-weight: bold;
+      color: white;
+      z-index: 1000;
+    }
+
+    .header {
+      background: #003a91;
+      color: white;
       padding: 20px;
     }
 
+    .header-content {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 15px;
+      text-align: center;
+    }
+
+    .header-content img {
+      width: 70px;
+      height: auto;
+    }
+
+    .header_text h1 {
+      margin: 0;
+      font-size: 20px;
+    }
+
+    .header_text h3 {
+      margin: 4px 0 0 0;
+      font-weight: normal;
+      font-size: 13px;
+    }
+
     .form-container {
-      background: #fff;
-      padding: 30px 40px;
+      max-width: 500px;
+      margin: 40px auto;
+      background: white;
       border-radius: 12px;
-      max-width: 450px;
-      width: 100%;
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+      padding: 30px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
     }
 
     .form-container h2 {
       text-align: center;
+      margin-bottom: 10px;
+      color: #333;
+    }
+
+    .form-container p {
+      text-align: center;
       margin-bottom: 25px;
-      color: #003a91;
+      color: #666;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
     }
 
     label {
       display: block;
       margin-bottom: 6px;
-      font-weight: bold;
+      font-weight: 500;
       color: #333;
     }
 
-    input[type="text"],
-    textarea {
+    input, select, textarea {
       width: 100%;
-      padding: 10px;
-      margin-bottom: 20px;
-      border: 1px solid #ccc;
-      border-radius: 6px;
+      padding: 10px 15px;
       font-size: 15px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      outline: none;
+      transition: border 0.3s;
     }
 
-    textarea {
-      resize: vertical;
-      height: 100px;
+    input:focus, textarea:focus {
+      border-color: #0047AB;
     }
 
     .btn {
-      width: 100%;
+      background: #0047AB;
+      color: white;
       padding: 12px;
-      background-color: #003a91;
-      color: #fff;
+      width: 100%;
       border: none;
-      border-radius: 6px;
+      border-radius: 8px;
       font-size: 16px;
       cursor: pointer;
-      transition: background-color 0.3s ease;
+      transition: background 0.3s;
     }
 
     .btn:hover {
-      background-color: #002e6d;
+      background: #003a91;
     }
 
-    .back-link {
-      display: block;
-      margin-top: 20px;
+    .messages {
+      color: green;
       text-align: center;
-      text-decoration: none;
-      color: #003a91;
+      margin-bottom: 15px;
+    }
+
+    .error {
+      color: red;
       font-weight: bold;
+      text-align: center;
+      margin-bottom: 15px;
     }
 
-    .back-link:hover {
-      text-decoration: underline;
-    }
-
-    @media (max-width: 500px) {
+    @media (max-width: 600px) {
       .form-container {
-        padding: 20px;
+        margin: 20px 15px;
+        padding: 25px 20px;
+      }
+
+      .header_text h1 {
+        font-size: 18px;
+      }
+
+      .header_text h3 {
+        font-size: 12px;
+      }
+
+      .btn {
+        font-size: 15px;
+        padding: 10px;
       }
     }
   </style>
 </head>
 <body>
 
-  <form method="POST" class="form-container">
-    <h2>Gatepass Request</h2>
+  <div class="developed-by">Developed by <strong>RAVS</strong></div>
 
-    <label>Student ID:</label>
-    <input type="text" name="student_id" value="{{ student['student_id'] }}" readonly>
+  <div class="header">
+    <div class="header-content">
+      <img src="{{ url_for('static', filename='logo.jpg') }}" alt="College Logo">
+      <div class="header_text">
+        <h1>St. JOHNS COLLEGE OF ENGINEERING & TECHNOLOGY</h1>
+        <h3>Yerrakota, YEMMIGANUR – Kurnool Dt., Andhra Pradesh</h3>
+      </div>
+    </div>
+  </div>
 
-    <label>Reason for Gatepass:</label>
-    <textarea name="reason" placeholder="Enter your reason..." required></textarea>
+  <div class="form-container">
+    <h2>Request Gatepass</h2>
+    <p>Fill out the form to request your gatepass</p>
 
-    <button type="submit" class="btn">Submit Request</button>
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="messages">
+          {% for msg in messages %}
+            <p>{{ msg }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
 
-    <a href="{{ url_for('student_dashboard') }}" class="back-link">← Back to Dashboard</a>
-  </form>
+    <form method="POST">
+      <div class="form-group">
+        <label for="student_id">Student ID</label>
+        <input type="text" name="student_id" value="{{ student['student_id'] }}" readonly>
+      </div>
+
+      <div class="form-group">
+        <label for="name">Name</label>
+        <input type="text" name="name" value="{{ student['name'] }}" readonly>
+      </div>
+
+      <div class="form-group">
+        <label for="reason">Reason for Gatepass</label>
+        <textarea name="reason" rows="4" placeholder="Enter your reason..." required></textarea>
+      </div>
+
+      <button type="submit" class="btn">Submit Request</button>
+    </form>
+  </div>
 
 </body>
 </html>
