@@ -450,7 +450,7 @@ def qr_status(req_id):
 
     # ✅ LOGIC FIXED: Green for ACCEPTED, Red for REJECTED
     if status_upper == "ACCEPTED":
-        bg_color = "#28a745"  # ✅ Green
+        bg_color = "#008000"  # ✅ Green
     elif status_upper == "REJECTED":
         bg_color = "#dc3545"  # ✅ Red
     else:
