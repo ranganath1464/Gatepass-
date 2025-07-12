@@ -26,9 +26,6 @@ def home():
     return redirect(url_for('login'))
 
 # ---------------- REGISTER ----------------
-from flask import Flask, render_template, request, redirect, flash, url_for
-import psycopg2  # or use your DB connector
-
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
@@ -39,28 +36,46 @@ def register():
         email = request.form['email']
         password = request.form['password']
 
-        # Connect to your DB
-        conn = psycopg2.connect(...)  # Replace with your DB config
-        cur = conn.cursor()
+        conn = get_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-        # Check if email already exists
-        cur.execute("SELECT * FROM users WHERE email = %s", (email,))
+        cur.execute("SELECT * FROM students WHERE email = %s", (email,))
         existing_user = cur.fetchone()
 
         if existing_user:
-            # Show error message
+            cur.close()
+            conn.close()
             return render_template('register.html', error="Email is already in use.")
 
-        # Insert new user if email not found
-        cur.execute("INSERT INTO users (name, branch, student_id, mobile, email, password) VALUES (%s, %s, %s, %s, %s, %s)",
-                    (name, branch, student_id, mobile, email, password))
-        conn.commit()
+        # Generate and store OTP in session
+        otp = str(random.randint(100000, 999999))
+        session['otp'] = otp
+        session['pending_user'] = {
+            'name': name,
+            'branch': branch,
+            'student_id': student_id,
+            'mobile': mobile,
+            'email': email,
+            'password': password
+        }
+
+        subject = "Your OTP for Gatepass Registration"
+        body = f"Dear {name},\n\nYour OTP for registration is: {otp}\n\nPlease enter this on the verification page."
+
+        try:
+            send_email(email, subject, body)
+        except Exception as e:
+            flash("Failed to send OTP. Please check your email settings.")
+            cur.close()
+            conn.close()
+            return render_template('register.html')
+
         cur.close()
         conn.close()
-
-        return redirect(url_for('login'))  # or dashboard
+        return redirect(url_for('verify_otp'))
 
     return render_template('register.html')
+
 
 # ---------------- VERIFY OTP ----------------
 @app.route('/verify-otp', methods=['GET', 'POST'])
@@ -90,6 +105,7 @@ def verify_otp():
 
     return render_template("verify_otp.html")
 
+
 # ---------------- LOGIN ----------------
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -117,6 +133,7 @@ def login():
 
     return render_template("login.html", error=error)
 
+
 # ---------------- STUDENT DASHBOARD ----------------
 @app.route('/student/dashboard')
 def student_dashboard():
@@ -138,7 +155,6 @@ def student_dashboard():
     cur.close()
     conn.close()
 
-    # 🔁 Convert request_date to IST timezone
     ist = pytz.timezone('Asia/Kolkata')
     for req in requests:
         if isinstance(req['request_date'], datetime):
@@ -177,10 +193,9 @@ def student_gatepass():
             faculty_email = faculty['email']
             subject = f"New Gatepass Request from {student['name']} ({student['student_id']})"
 
-            # Format date and time
-            day_str = request_date.strftime('%A')                # e.g., Sunday
-            date_str = request_date.strftime('%d-%m-%Y')         # e.g., 29-06-2025
-            time_str = request_date.strftime('%I:%M %p')         # e.g., 03:45 PM
+            date_str = request_date.strftime('%d-%m-%Y')
+            time_str = request_date.strftime('%I:%M %p')
+            day_str = request_date.strftime('%A')
 
             body = f"""
 Dear Faculty,
@@ -194,7 +209,7 @@ A new gatepass request has been submitted:
 - Date: {date_str}, {day_str}
 - Time: {time_str}
 
-Login here to view: https://gatepass-system-gmz7.onrender.com/login
+Login to view: https://gatepass-system-gmz7.onrender.com/login
 
 Regards,
 Gatepass System
@@ -204,7 +219,7 @@ Gatepass System
             except Exception as e:
                 flash("Gatepass submitted, but failed to notify faculty: " + str(e))
 
-        flash("Gatepass request submitted and faculty notified.")
+        flash("Gatepass request submitted successfully.")
         cur.close()
         conn.close()
         return redirect(url_for('student_dashboard'))
@@ -212,6 +227,7 @@ Gatepass System
     cur.close()
     conn.close()
     return render_template("gatepass_form.html", student=student)
+
 
 # ---------------- FACULTY DASHBOARD ----------------
 @app.route('/faculty/dashboard')
@@ -234,13 +250,13 @@ def faculty_dashboard():
     cur.close()
     conn.close()
 
-    # 🔁 Convert request_date to IST
     ist = pytz.timezone('Asia/Kolkata')
     for req in requests:
         if isinstance(req['request_date'], datetime):
             req['request_date'] = req['request_date'].astimezone(ist)
 
     return render_template("faculty_dashboard.html", requests=requests)
+
 
 # ---------------- APPROVE/REJECT ----------------
 @app.route('/faculty/approve/<int:req_id>', methods=['POST'])
@@ -262,7 +278,6 @@ def faculty_approve(req_id):
     data = cur.fetchone()
 
     if data:
-        # Update the status and remark
         cur.execute("""
             UPDATE gatepass_requests
             SET status=%s, faculty_remark=%s
@@ -270,50 +285,42 @@ def faculty_approve(req_id):
         """, (status, remark, req_id))
         conn.commit()
 
-        # Convert original request time to IST
         ist = pytz.timezone('Asia/Kolkata')
-        request_datetime_ist = data['request_date'].astimezone(ist)
-        request_day_str = request_datetime_ist.strftime('%A')               # Sunday
-        request_date_str = request_datetime_ist.strftime('%d-%m-%Y')        # 29-06-2025
-        request_time_str = request_datetime_ist.strftime('%I:%M %p')        # 03:45 PM
+        req_dt = data['request_date'].astimezone(ist)
+        now_dt = datetime.now(pytz.utc).astimezone(ist)
 
-        # Get current IST time for approval/rejection
-        approval_datetime_ist = datetime.now(pytz.utc).astimezone(ist)
-        approval_day_str = approval_datetime_ist.strftime('%A')
-        approval_date_str = approval_datetime_ist.strftime('%d-%m-%Y')
-        approval_time_str = approval_datetime_ist.strftime('%I:%M %p')
-
-        subject = f"Gatepass Request {status.capitalize()} - Gatepass System"
+        subject = f"Gatepass {status.upper()} - Gatepass System"
         body = f"""
 Dear {data['name']},
 
 Your gatepass request submitted on:
-Date: {request_date_str}, {request_day_str}
-Time: {request_time_str}
+Date: {req_dt.strftime('%d-%m-%Y')}, {req_dt.strftime('%A')}
+Time: {req_dt.strftime('%I:%M %p')}
 
 has been {status.upper()}.
 
 Faculty Remark: {remark}
 
-Approval/Decision Time:
-Date: {approval_date_str}, {approval_day_str}
-Time: {approval_time_str}
+Approved On:
+Date: {now_dt.strftime('%d-%m-%Y')}, {now_dt.strftime('%A')}
+Time: {now_dt.strftime('%I:%M %p')}
 
-You can check the status here:
+Check status here:
 https://gatepass-system-gmz7.onrender.com/student/dashboard
 
-Regards,  
+Regards,
 Gatepass System
         """
         try:
             send_email(data['email'], subject, body)
         except Exception as e:
-            flash("Request updated, but failed to notify student: " + str(e))
+            flash("Request updated, but email notification failed: " + str(e))
 
     cur.close()
     conn.close()
     flash(f"Request {status} successfully.")
     return redirect(url_for('faculty_dashboard'))
+
 
 # ---------------- LOGOUT ----------------
 @app.route('/logout')
@@ -321,5 +328,6 @@ def logout():
     session.clear()
     return redirect(url_for('login'))
 
+
 if __name__ == '__main__':
-    app.run(debug=True) 
+    app.run(debug=True)
