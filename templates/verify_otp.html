@@ -57,10 +57,21 @@
       box-shadow: 0 8px 20px rgba(0,0,0,0.08);
     }
 
-    .form-container h2 { text-align: center; margin-bottom: 10px; color: #0047ab; }
-    .form-container p { text-align: center; margin-bottom: 25px; color: #666; }
+    .form-container h2 {
+      text-align: center;
+      margin-bottom: 10px;
+      color: #0047ab;
+    }
 
-    .form-group { margin-bottom: 20px; }
+    .form-container p {
+      text-align: center;
+      margin-bottom: 25px;
+      color: #666;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
 
     label {
       display: block;
@@ -74,7 +85,6 @@
       padding: 12px;
       border: 1px solid #ccc;
       border-radius: 8px;
-      margin-bottom: 15px;
       font-size: 15px;
     }
 
@@ -101,6 +111,21 @@
       text-align: center;
     }
 
+    .login-link {
+      text-align: center;
+      margin-top: 15px;
+    }
+
+    .login-link a {
+      color: #0047AB;
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .login-link a:hover {
+      text-decoration: underline;
+    }
+
     .date-time {
       text-align: center;
       margin-bottom: 20px;
@@ -113,23 +138,11 @@
       font-weight: 600;
       font-size: 17px;
     }
-
-    .login-link {
-      text-align: center;
-      margin-top: 10px;
-    }
-
-    .login-link a {
-      color: #0047AB;
-      text-decoration: none;
-      font-weight: 500;
-    }
-
-    .login-link a:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
 
+  <!-- Top Right Label -->
   <div class="developed-by">Developed by <strong>RAVS</strong></div>
 
   <div class="header">
@@ -144,6 +157,7 @@
 
   <div class="form-container">
     <h2>Verify OTP</h2>
+    <p>Enter the 6-digit OTP sent to your email</p>
 
     <div class="date-time">
       <div>Date: {{ date_day }}</div>
@@ -162,8 +176,8 @@
 
     <form method="POST">
       <div class="form-group">
-        <label>Enter OTP sent to your email:</label>
-        <input type="text" name="otp" required placeholder="e.g. 123456">
+        <label for="otp">Enter OTP</label>
+        <input type="text" name="otp" id="otp" required placeholder="e.g. 123456">
       </div>
 
       <button type="submit" class="btn">Verify</button>
