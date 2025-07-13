@@ -483,22 +483,18 @@ def qr_status(req_id):
 
 # ---------------- BIOMETRIC LOGIN SUPPORT (ADDED SEPARATELY) ----------------
 
-@app.route('/generate-challenge')
+@app.route('/generate-challenge', methods=['POST'])
 def generate_challenge():
     import base64, os
-    email = request.args.get('email')  # <-- passed from frontend
+    data = request.json
+    email = data.get('email')
 
     if not email:
-        return jsonify({"error": "Email required"}), 400
+        return jsonify({"error": "Email is required."}), 400
 
-    conn = get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute("SELECT credential_id FROM students WHERE email = %s", (email,))
-    student = cur.fetchone()
-    cur.close()
-    conn.close()
-
-    if not student or not student['credential_id']:
+    # Fetch user's stored credential_id from DB or session
+    credential_id = get_credential_id_for_email(email)  # implement this function
+    if not credential_id:
         return jsonify({"error": "No fingerprint credentials found. Please register first."}), 404
 
     challenge = os.urandom(32)
@@ -506,11 +502,11 @@ def generate_challenge():
 
     return jsonify({
         "challenge": session['challenge'],
-        "rpId": "gatepass-system-gmz7.onrender.com",
+        "rpId": "your-domain.com",
         "timeout": 60000,
         "userVerification": "preferred",
         "allowCredentials": [{
-            "id": student['credential_id'],
+            "id": credential_id,
             "type": "public-key"
         }]
     })
