@@ -252,96 +252,22 @@
         <p><a href="{{ url_for('forgot_password') }}">Forgot Password?</a></p>
       </div>
     </form>
-
-    <!-- Fingerprint Login -->
-    <div style="text-align:center; margin-top: 20px;">
-      <p>or</p>
-     <div class="form-group">
-  <label for="fingerEmail">Email for Fingerprint Login</label>
-  <input type="email" id="fingerEmail" placeholder="Enter your email" required>
-</div>
-
-<button class="btn" id="biometricLogin" type="button">Login with Fingerprint</button>
-
-    </div>
   </div>
 
 <script>
-document.getElementById('biometricLogin').addEventListener('click', async () => {
-  try {
-   const emailField = document.querySelector('input[name="email"]');
-if (!emailField || !emailField.value.trim()) {
-  alert("Please enter your email before using fingerprint login.");
-  return;
-}
-const emailInput = emailField.value.trim();
+  function togglePassword() {
+    const passwordInput = document.getElementById("password");
+    const toggleIcon = document.getElementById("togglePassword");
 
-    if (!emailInput) {
-      alert("Please enter your email before using fingerprint login.");
-      return;
-    }
-
-    const res = await fetch('/generate-challenge', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: emailInput })
-    });
-
-    const publicKey = await res.json();
-
-    if (publicKey.error) {
-      alert(publicKey.error);
-      return;
-    }
-
-    publicKey.challenge = Uint8Array.from(atob(publicKey.challenge), c => c.charCodeAt(0));
-    publicKey.allowCredentials = publicKey.allowCredentials.map(cred => ({
-      ...cred,
-      id: Uint8Array.from(atob(cred.id), c => c.charCodeAt(0))
-    }));
-
-    const assertion = await navigator.credentials.get({ publicKey });
-
-    const arrayBufferToBase64 = buffer => {
-      const bytes = new Uint8Array(buffer);
-      let binary = '';
-      bytes.forEach(b => binary += String.fromCharCode(b));
-      return btoa(binary);
-    };
-
-    const response = {
-      id: assertion.id,
-      rawId: arrayBufferToBase64(assertion.rawId),
-      type: assertion.type,
-      response: {
-        clientDataJSON: arrayBufferToBase64(assertion.response.clientDataJSON),
-        authenticatorData: arrayBufferToBase64(assertion.response.authenticatorData),
-        signature: arrayBufferToBase64(assertion.response.signature),
-        userHandle: assertion.response.userHandle ? arrayBufferToBase64(assertion.response.userHandle) : null
-      },
-      email: emailInput  // include email for backend
-    };
-
-    const verifyRes = await fetch('/fingerprint-auth', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(response)
-    });
-
-    const result = await verifyRes.json();
-
-    if (verifyRes.ok) {
-      window.location.href = result.redirect || '/student/dashboard';
+    if (passwordInput.type === "password") {
+      passwordInput.type = "text";
+      toggleIcon.textContent = "🙈";
     } else {
-      alert(result.error || "Biometric authentication failed.");
+      passwordInput.type = "password";
+      toggleIcon.textContent = "🐵";
     }
-  } catch (err) {
-    console.error(err);
-    alert("Biometric login failed or not supported.");
   }
-});
 </script>
-
 
 </body>
 </html>
