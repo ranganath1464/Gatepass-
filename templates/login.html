@@ -260,72 +260,79 @@
     </div>
   </div>
 
-  <script>
-    function togglePassword() {
-      const passwordInput = document.getElementById("password");
-      const toggleIcon = document.getElementById("togglePassword");
+<script>
+  function togglePassword() {
+    const passwordInput = document.getElementById("password");
+    const toggleIcon = document.getElementById("togglePassword");
 
-      if (passwordInput.type === "password") {
-        passwordInput.type = "text";
-        toggleIcon.textContent = "🙈";
-      } else {
-        passwordInput.type = "password";
-        toggleIcon.textContent = "🐵";
-      }
+    if (passwordInput.type === "password") {
+      passwordInput.type = "text";
+      toggleIcon.textContent = "🙈";
+    } else {
+      passwordInput.type = "password";
+      toggleIcon.textContent = "🐵";
     }
+  }
 
-    async function arrayBufferToBase64(buffer) {
-      let binary = '';
-      const bytes = new Uint8Array(buffer);
-      const len = bytes.byteLength;
-      for (let i = 0; i < len; i++) {
-        binary += String.fromCharCode(bytes[i]);
-      }
-      return window.btoa(binary);
+  async function arrayBufferToBase64(buffer) {
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let byte of bytes) {
+      binary += String.fromCharCode(byte);
     }
+    return btoa(binary);
+  }
 
-    document.getElementById('biometricLogin').addEventListener('click', async () => {
-      try {
-        const res = await fetch('/generate-challenge');
-        const publicKey = await res.json();
+  document.getElementById('biometricLogin').addEventListener('click', async () => {
+    try {
+      const res = await fetch('/generate-challenge');
+      const publicKey = await res.json();
 
-        publicKey.challenge = Uint8Array.from(atob(publicKey.challenge), c => c.charCodeAt(0)).buffer;
-        publicKey.allowCredentials = publicKey.allowCredentials.map(cred => ({
-          ...cred,
-          id: Uint8Array.from(atob(cred.id), c => c.charCodeAt(0)).buffer
-        }));
+      if (publicKey.error) {
+        alert(publicKey.error);
+        return;
+      }
 
-        const assertion = await navigator.credentials.get({ publicKey });
+      publicKey.challenge = Uint8Array.from(atob(publicKey.challenge), c => c.charCodeAt(0));
+      publicKey.allowCredentials = publicKey.allowCredentials.map(cred => ({
+        ...cred,
+        id: Uint8Array.from(atob(cred.id), c => c.charCodeAt(0))
+      }));
 
-        const response = {
-          id: assertion.id,
-          rawId: await arrayBufferToBase64(assertion.rawId),
-          type: assertion.type,
-          response: {
-            clientDataJSON: await arrayBufferToBase64(assertion.response.clientDataJSON),
-            authenticatorData: await arrayBufferToBase64(assertion.response.authenticatorData),
-            signature: await arrayBufferToBase64(assertion.response.signature),
-            userHandle: assertion.response.userHandle ? await arrayBufferToBase64(assertion.response.userHandle) : null
-          }
-        };
+      const assertion = await navigator.credentials.get({ publicKey });
 
-        const verifyRes = await fetch('/fingerprint-auth', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify(response)
-        });
-
-        if (verifyRes.ok) {
-          window.location.href = "/dashboard";
-        } else {
-          alert("Biometric authentication failed.");
+      const response = {
+        id: assertion.id,
+        rawId: await arrayBufferToBase64(assertion.rawId),
+        type: assertion.type,
+        response: {
+          clientDataJSON: await arrayBufferToBase64(assertion.response.clientDataJSON),
+          authenticatorData: await arrayBufferToBase64(assertion.response.authenticatorData),
+          signature: await arrayBufferToBase64(assertion.response.signature),
+          userHandle: assertion.response.userHandle ? await arrayBufferToBase64(assertion.response.userHandle) : null
         }
-      } catch (err) {
-        console.error(err);
-        alert("Biometric login is not supported or failed.");
+      };
+
+      const verifyRes = await fetch('/fingerprint-auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(response)
+      });
+
+      if (verifyRes.ok) {
+        const redirectURL = await verifyRes.json();
+        window.location.href = redirectURL.redirect || '/student/dashboard';
+      } else {
+        alert("Biometric authentication failed.");
       }
-    });
-  </script>
+
+    } catch (err) {
+      console.error(err);
+      alert("Biometric login is not supported or failed.");
+    }
+  });
+</script>
+
 
 </body>
 </html>
