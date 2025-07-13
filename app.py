@@ -568,5 +568,31 @@ def webauthn_register_complete():
     session['credential_id'] = credential_id  # Simulate storage
 
     return jsonify({ "success": True })
+@app.route('/register-passkey-options')
+def register_passkey_options():
+    import os, base64
+
+    challenge = os.urandom(32)
+    session['challenge'] = base64.b64encode(challenge).decode()
+
+    return jsonify({
+        "challenge": session['challenge'],
+        "rp": {
+            "name": "Gatepass System",
+            "id": "gatepass-system-gmz7.onrender.com"
+        },
+        "user": {
+            "id": base64.b64encode(session['email'].encode()).decode(),
+            "name": session['email'],
+            "displayName": session['email']
+        },
+        "pubKeyCredParams": [{"type": "public-key", "alg": -7}],
+        "authenticatorSelection": {
+            "userVerification": "preferred",
+            "authenticatorAttachment": "platform"  # Biometric
+        },
+        "timeout": 60000,
+        "attestation": "none"
+    })
 
 
