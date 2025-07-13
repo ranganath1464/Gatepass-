@@ -1,0 +1,42 @@
+<!-- templates/setup_fingerprint.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Setup Fingerprint Login</title>
+    <script>
+        async function setupFingerprint() {
+            const challengeResponse = await fetch("/generate-challenge");
+            const options = await challengeResponse.json();
+
+            // Convert base64 to Uint8Array
+            options.challenge = Uint8Array.from(atob(options.challenge), c => c.charCodeAt(0));
+            options.allowCredentials = options.allowCredentials.map(cred => ({
+                ...cred,
+                id: Uint8Array.from(atob(cred.id), c => c.charCodeAt(0))
+            }));
+
+            try {
+                const assertion = await navigator.credentials.get({ publicKey: options });
+                // Simulate login (no actual verification)
+                const loginResp = await fetch("/fingerprint-auth", { method: "POST" });
+                const result = await loginResp.json();
+                if (result.success) {
+                    window.location.href = "/student/dashboard";
+                } else {
+                    alert("Fingerprint authentication failed.");
+                }
+            } catch (err) {
+                alert("Error during fingerprint authentication: " + err);
+            }
+        }
+
+        window.onload = function () {
+            setupFingerprint();
+        };
+    </script>
+</head>
+<body>
+    <h2>Setting up your fingerprint login...</h2>
+    <p>Please scan your fingerprint or complete biometric login when prompted.</p>
+</body>
+</html>
