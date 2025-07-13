@@ -520,15 +520,23 @@ def generate_challenge():
 @app.route('/fingerprint-auth', methods=['POST'])
 def fingerprint_auth():
     data = request.json
-    credential_id = session.get('credential_id')
+    credential_id = data.get('id')
+    email = data.get('email')
 
-    if data.get('id') != credential_id:
-        return jsonify({ "error": "Invalid fingerprint credential." }), 403
+    conn = get_connection()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT * FROM students WHERE credential_id = %s AND email = %s", (credential_id, email))
+    student = cur.fetchone()
+    cur.close()
+    conn.close()
 
-    # Fake login (simulate pulling user from DB)
-    session['email'] = 'demo@example.com'
+    if not student:
+        return jsonify({"error": "Invalid fingerprint credential."}), 403
+
+    # ✅ Login
+    session['email'] = student['email']
     session['role'] = 'student'
-    session['branch'] = 'CSE'
+    session['branch'] = student['branch']
     return jsonify({ "success": True, "redirect": "/student/dashboard" })
 
 
