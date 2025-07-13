@@ -483,30 +483,26 @@ def qr_status(req_id):
 
 # ---------------- BIOMETRIC LOGIN SUPPORT (ADDED SEPARATELY) ----------------
 
-
 @app.route('/generate-challenge')
 def generate_challenge():
     import base64, os
+    email = request.args.get('email')  # <-- passed from frontend
 
-    email = session.get('email')
     if not email:
-        return jsonify({"error": "Not logged in"}), 403
+        return jsonify({"error": "Email required"}), 400
 
     conn = get_connection()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cur.execute("SELECT credential_id FROM students WHERE email = %s", (email,))
-    result = cur.fetchone()
+    student = cur.fetchone()
     cur.close()
     conn.close()
 
-    if not result or not result['credential_id']:
-        return jsonify({"error": "No fingerprint credentials found. Please register first."}), 400
-
-    credential_id = result['credential_id']
-    session['credential_id'] = credential_id  # optional caching
+    if not student or not student['credential_id']:
+        return jsonify({"error": "No fingerprint credentials found. Please register first."}), 404
 
     challenge = os.urandom(32)
-    session['challenge'] = base64.b64encode(challenge).decode('utf-8')
+    session['challenge'] = base64.b64encode(challenge).decode()
 
     return jsonify({
         "challenge": session['challenge'],
@@ -514,10 +510,11 @@ def generate_challenge():
         "timeout": 60000,
         "userVerification": "preferred",
         "allowCredentials": [{
-            "id": credential_id,
+            "id": student['credential_id'],
             "type": "public-key"
         }]
     })
+
 
 
 @app.route('/fingerprint-auth', methods=['POST'])
