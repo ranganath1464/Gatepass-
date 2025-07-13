@@ -1,31 +1,47 @@
-<script>
-async function registerPasskey() {
-    const res = await fetch("/webauthn/register-options");
-    const options = await res.json();
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Fingerprint Setup</title>
+</head>
+<body>
+  <h2>Set up Fingerprint Login</h2>
+  <p>Click the button below to register your fingerprint or Face ID.</p>
+  <button onclick="registerPasskey()">Setup Fingerprint</button>
 
-    // Convert base64 to Uint8Array
-    options.challenge = Uint8Array.from(atob(options.challenge), c => c.charCodeAt(0));
-    options.user.id = Uint8Array.from(atob(options.user.id), c => c.charCodeAt(0));
+  <script>
+    async function registerPasskey() {
+      const res = await fetch("/webauthn/register-options");
+      const options = await res.json();
 
-    const credential = await navigator.credentials.create({ publicKey: options });
+      options.challenge = Uint8Array.from(atob(options.challenge), c => c.charCodeAt(0));
+      options.user.id = Uint8Array.from(atob(options.user.id), c => c.charCodeAt(0));
 
-    const credentialData = {
+      const credential = await navigator.credentials.create({ publicKey: options });
+
+      const data = {
         id: credential.id,
         rawId: btoa(String.fromCharCode(...new Uint8Array(credential.rawId))),
         type: credential.type,
         response: {
-            attestationObject: btoa(String.fromCharCode(...new Uint8Array(credential.response.attestationObject))),
-            clientDataJSON: btoa(String.fromCharCode(...new Uint8Array(credential.response.clientDataJSON)))
+          attestationObject: btoa(String.fromCharCode(...new Uint8Array(credential.response.attestationObject))),
+          clientDataJSON: btoa(String.fromCharCode(...new Uint8Array(credential.response.clientDataJSON)))
         }
-    };
+      };
 
-    await fetch('/webauthn/register-complete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(credentialData)
-    });
+      const complete = await fetch("/webauthn/register-complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+      });
 
-    alert("✅ Passkey registration complete!");
-    window.location.href = "/student/dashboard";
-}
-</script>
+      const result = await complete.json();
+      if (result.success) {
+        alert("✅ Fingerprint login setup complete.");
+        window.location.href = "/student/dashboard";
+      } else {
+        alert("Failed to setup passkey.");
+      }
+    }
+  </script>
+</body>
+</html>
