@@ -1,3 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Setup Fingerprint | Gatepass</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: #f0f4f8;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+      text-align: center;
+      max-width: 400px;
+      width: 90%;
+    }
+
+    h2 {
+      margin-bottom: 10px;
+      color: #333;
+    }
+
+    p {
+      color: #666;
+      margin-bottom: 20px;
+    }
+
+    .btn {
+      background: #0047AB;
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      margin: 10px;
+      border-radius: 6px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    .btn:hover {
+      background: #003a91;
+    }
+
+    .skip-link {
+      display: inline-block;
+      margin-top: 10px;
+      font-size: 14px;
+      color: #0047AB;
+      text-decoration: underline;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h2>Enable Biometric Login</h2>
+  <p>To enable fingerprint login on your device, click below:</p>
+
+  <button class="btn" id="startFingerprint">Setup Fingerprint</button>
+
+  <p class="skip-link" onclick="skipFingerprint()">Skip & Continue to Dashboard</p>
+</div>
+
 <script>
   async function arrayBufferToBase64(buffer) {
     let binary = '';
@@ -21,39 +94,46 @@
   document.getElementById('startFingerprint').addEventListener('click', async () => {
     try {
       const res = await fetch('/register-passkey-options');
+      if (!res.ok) {
+        throw new Error("Failed to fetch registration options.");
+      }
+
       const options = await res.json();
 
-      // Convert options to correct format
+      // Convert base64 strings to ArrayBuffer
       options.challenge = base64ToArrayBuffer(options.challenge);
       options.user.id = base64ToArrayBuffer(options.user.id);
 
-      const cred = await navigator.credentials.create({ publicKey: options });
+      const credential = await navigator.credentials.create({ publicKey: options });
 
       const credentialData = {
-        id: cred.id,
-        rawId: await arrayBufferToBase64(cred.rawId),
-        type: cred.type,
+        id: credential.id,
+        rawId: await arrayBufferToBase64(credential.rawId),
+        type: credential.type,
         response: {
-          clientDataJSON: await arrayBufferToBase64(cred.response.clientDataJSON),
-          attestationObject: await arrayBufferToBase64(cred.response.attestationObject)
+          clientDataJSON: await arrayBufferToBase64(credential.response.clientDataJSON),
+          attestationObject: await arrayBufferToBase64(credential.response.attestationObject)
         }
       };
 
-      const result = await fetch('/webauthn/register-complete', {
+      const verifyRes = await fetch('/webauthn/register-complete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(credentialData)
       });
 
-      if (result.ok) {
-        alert("Fingerprint registration successful!");
+      const result = await verifyRes.json();
+
+      if (verifyRes.ok && result.success) {
+        alert("✅ Fingerprint registration successful!");
         window.location.href = "/student/dashboard";
       } else {
-        alert("Fingerprint registration failed.");
+        alert("❌ Fingerprint registration failed.");
+        console.error("Registration error:", result);
       }
     } catch (err) {
-      console.error(err);
-      alert("Biometric not supported, or user cancelled.");
+      console.error("Fingerprint setup error:", err);
+      alert("❌ Biometric setup failed or was cancelled.");
     }
   });
 
@@ -61,3 +141,6 @@
     window.location.href = "/student/dashboard";
   }
 </script>
+
+</body>
+</html>
