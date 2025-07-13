@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from db_config import get_connection
 import psycopg2.extras
 from datetime import datetime
@@ -9,8 +9,6 @@ import pytz
 import qrcode
 from io import BytesIO
 import base64
-from flask import jsonify
-
 
 app = Flask(__name__)
 app.secret_key = "supersecretkey"
@@ -36,8 +34,8 @@ def register():
     if request.method == 'POST':
         name = request.form['name']
         branch = request.form['branch']
-        year = request.form['year']                    # NEW
-        semester = request.form['semester']            # NEW
+        year = request.form['year']
+        semester = request.form['semester']
         student_id = request.form['student_id']
         mobile = request.form['mobile']
         email = request.form['email']
@@ -54,14 +52,13 @@ def register():
             conn.close()
             return render_template('register.html', error="Email is already in use.")
 
-        # Store data in session for OTP verification
         otp = str(random.randint(100000, 999999))
         session['otp'] = otp
         session['pending_user'] = {
             'name': name,
             'branch': branch,
-            'year': year,                     # NEW
-            'semester': semester,             # NEW
+            'year': year,
+            'semester': semester,
             'student_id': student_id,
             'mobile': mobile,
             'email': email,
@@ -100,24 +97,16 @@ def verify_otp():
                     INSERT INTO students (name, student_id, branch, year, semester, email, mobile, password)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 """, (
-                    user['name'],
-                    user['student_id'],
-                    user['branch'],
-                    user['year'],
-                    user['semester'],
-                    user['email'],
-                    user['mobile'],
-                    user['password']
+                    user['name'], user['student_id'], user['branch'], user['year'],
+                    user['semester'], user['email'], user['mobile'], user['password']
                 ))
                 conn.commit()
 
-                # Store email in session for fingerprint setup
                 session['email'] = user['email']
                 session['role'] = 'student'
                 session['branch'] = user['branch']
 
-                # ✅ Redirect to fingerprint setup
-                return redirect(url_for('setup_fingerprint'))
+                return redirect(url_for('student_dashboard'))
 
             except Exception as e:
                 conn.rollback()
@@ -129,6 +118,7 @@ def verify_otp():
             flash("Invalid OTP. Please try again.")
 
     return render_template("verify_otp.html")
+
 
 # ---------------- LOGIN ----------------
 @app.route('/login', methods=['GET', 'POST'])
@@ -216,7 +206,6 @@ def student_gatepass():
         if faculty:
             faculty_email = faculty['email']
             subject = f"New Gatepass Request from {student['name']} ({student['student_id']})"
-
             date_str = request_date.strftime('%d-%m-%Y')
             time_str = request_date.strftime('%I:%M %p')
             day_str = request_date.strftime('%A')
@@ -283,7 +272,6 @@ def faculty_dashboard():
 
 
 # ---------------- APPROVE/REJECT ----------------
-
 @app.route('/faculty/approve/<int:req_id>', methods=['POST'])
 def faculty_approve(req_id):
     if session.get('role') != 'faculty':
@@ -294,10 +282,8 @@ def faculty_approve(req_id):
 
     conn = get_connection()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-
-    # Fetch request + student data
     cur.execute("""
-        SELECT gr.*, s.name, s.email, s.student_id, gr.request_date
+        SELECT gr.*, s.name, s.email, gr.request_date
         FROM gatepass_requests gr
         JOIN students s ON gr.student_id = s.student_id
         WHERE gr.id = %s
@@ -305,7 +291,6 @@ def faculty_approve(req_id):
     data = cur.fetchone()
 
     if data:
-        # Update DB with new status and remark
         cur.execute("""
             UPDATE gatepass_requests
             SET status=%s, faculty_remark=%s
@@ -313,14 +298,12 @@ def faculty_approve(req_id):
         """, (status, remark, req_id))
         conn.commit()
 
-        # Create QR with URL
         qr_url = f"https://gatepass-system-gmz7.onrender.com/qr-status/{req_id}"
         qr = qrcode.make(qr_url)
         buffered = BytesIO()
         qr.save(buffered, format="PNG")
         qr_base64 = base64.b64encode(buffered.getvalue()).decode()
 
-        # Date formatting
         ist = pytz.timezone('Asia/Kolkata')
         req_dt = data['request_date'].astimezone(ist)
         now_dt = datetime.now(pytz.utc).astimezone(ist)
@@ -347,7 +330,6 @@ Scan QR Code to view gatepass status:
 Regards,
 Gatepass System
         """
-
         try:
             send_email(data['email'], subject, body)
         except Exception as e:
@@ -358,16 +340,42 @@ Gatepass System
     flash(f"Request {status} successfully.")
     return redirect(url_for('faculty_dashboard'))
 
-# ---------------- LOGOUT ----------------
-@app.route('/logout')
-def logout():
-    session.clear()
-    return redirect(url_for('login'))
+
+# ---------------- QR STATUS ----------------
+@app.route('/qr-status/<int:req_id>')
+def qr_status(req_id):
+    conn = get_connection()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("""
+        SELECT gr.status, s.name, gr.request_date
+        FROM gatepass_requests gr
+        JOIN students s ON gr.student_id = s.student_id
+        WHERE gr.id = %s
+    """, (req_id,))
+    data = cur.fetchone()
+    cur.close()
+    conn.close()
+
+    if not data:
+        return "Invalid QR or request ID."
+
+    status_upper = data['status'].upper()
+
+    if status_upper == "ACCEPTED":
+        bg_color = "#28a745"
+    elif status_upper == "REJECTED":
+        bg_color = "#dc3545"
+    else:
+        bg_color = "#6c757d"
+
+    return render_template("qr_status_page.html",
+                           status=status_upper,
+                           name=data['name'],
+                           dt=data['request_date'],
+                           bg=bg_color)
 
 
-if __name__ == '__main__':
-    app.run(debug=True)
-# ---------------- FORGOT PASSWORD ----------------
+# ---------------- FORGOT / RESET PASSWORD ----------------
 @app.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
     if request.method == 'POST':
@@ -414,7 +422,7 @@ Gatepass System
 
     return render_template("forgot_password.html")
 
-# ---------------- RESET PASSWORD ----------------
+
 @app.route('/reset-password', methods=['GET', 'POST'])
 def reset_password():
     if request.method == 'POST':
@@ -436,7 +444,6 @@ def reset_password():
         cur.close()
         conn.close()
 
-        # Clear session OTP data
         session.pop('reset_otp', None)
         session.pop('reset_email', None)
         session.pop('reset_role', None)
@@ -446,181 +453,13 @@ def reset_password():
 
     return render_template("reset_password.html")
 
-from datetime import datetime
-import pytz
 
-@app.route('/qr-status/<int:req_id>')
-def qr_status(req_id):
-    conn = get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute("""
-        SELECT gr.status, s.name, gr.request_date
-        FROM gatepass_requests gr
-        JOIN students s ON gr.student_id = s.student_id
-        WHERE gr.id = %s
-    """, (req_id,))
-    data = cur.fetchone()
-    cur.close()
-    conn.close()
-
-    if not data:
-        return "Invalid QR or request ID."
-
-    status_upper = data['status'].upper()
-
-    if status_upper == "ACCEPTED":
-        bg_color = "#28a745"  # green
-    elif status_upper == "REJECTED":
-        bg_color = "#dc3545"  # red
-    else:
-        bg_color = "#6c757d"  # gray fallback
-
-    return render_template("qr_status_page.html",
-                           status=status_upper,
-                           name=data['name'],
-                           dt=data['request_date'],
-                           bg=bg_color)
-
-# ---------------- BIOMETRIC LOGIN SUPPORT (ADDED SEPARATELY) ----------------
-
-@app.route('/generate-challenge', methods=['POST'])
-def generate_challenge():
-    import base64, os
-    data = request.json
-    email = data.get('email')
-
-    if not email:
-        return jsonify({"error": "Email is required."}), 400
-
-    # Fetch user's stored credential_id from DB or session
-    credential_id = get_credential_id_for_email(email)  # implement this function
-    if not credential_id:
-        return jsonify({"error": "No fingerprint credentials found. Please register first."}), 404
-
-    challenge = os.urandom(32)
-    session['challenge'] = base64.b64encode(challenge).decode()
-
-    return jsonify({
-        "challenge": session['challenge'],
-        "rpId": "your-domain.com",
-        "timeout": 60000,
-        "userVerification": "preferred",
-        "allowCredentials": [{
-            "id": credential_id,
-            "type": "public-key"
-        }]
-    })
+# ---------------- LOGOUT ----------------
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('login'))
 
 
-
-@app.route('/fingerprint-auth', methods=['POST'])
-def fingerprint_auth():
-    data = request.json
-    credential_id = data.get('id')
-    email = data.get('email')
-
-    conn = get_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute("SELECT * FROM students WHERE credential_id = %s AND email = %s", (credential_id, email))
-    student = cur.fetchone()
-    cur.close()
-    conn.close()
-
-    if not student:
-        return jsonify({"error": "Invalid fingerprint credential."}), 403
-
-    # ✅ Login
-    session['email'] = student['email']
-    session['role'] = 'student'
-    session['branch'] = student['branch']
-    return jsonify({ "success": True, "redirect": "/student/dashboard" })
-
-
-@app.route('/setup-fingerprint')
-def setup_fingerprint():
-    if 'email' not in session:
-        return redirect(url_for('login'))
-
-    return render_template("setup_fingerprint.html")
-
-@app.route('/webauthn/register-options')
-def webauthn_register_options():
-    import base64, os
-    challenge = base64.b64encode(os.urandom(32)).decode()
-
-    user_id = base64.b64encode(session['email'].encode()).decode()
-
-    options = {
-        "challenge": challenge,
-        "rp": { "name": "Gatepass System" },
-        "user": {
-            "id": user_id,
-            "name": session['email'],
-            "displayName": session['email']
-        },
-        "pubKeyCredParams": [{ "type": "public-key", "alg": -7 }],
-        "authenticatorSelection": {
-            "authenticatorAttachment": "platform",
-            "userVerification": "preferred"
-        },
-        "timeout": 60000,
-        "attestation": "none"
-    }
-
-    session['register_challenge'] = challenge
-    return jsonify(options)
-
-@app.route('/webauthn/register-complete', methods=['POST'])
-def webauthn_register_complete():
-    data = request.json
-    credential_id = data['id']
-
-    session['credential_id'] = credential_id  # for current session
-
-    # ✅ Store in database permanently
-    email = session.get('email')
-    if not email:
-        return jsonify({"error": "User not authenticated"}), 400
-
-    conn = get_connection()
-    cur = conn.cursor()
-    try:
-        cur.execute("UPDATE students SET credential_id = %s WHERE email = %s", (credential_id, email))
-        conn.commit()
-    except Exception as e:
-        conn.rollback()
-        return jsonify({"error": str(e)}), 500
-    finally:
-        cur.close()
-        conn.close()
-
-    return jsonify({ "success": True })
-
-@app.route('/register-passkey-options')
-def register_passkey_options():
-    import os, base64
-
-    challenge = os.urandom(32)
-    session['challenge'] = base64.b64encode(challenge).decode()
-
-    return jsonify({
-        "challenge": session['challenge'],
-        "rp": {
-            "name": "Gatepass System",
-            "id": "gatepass-system-gmz7.onrender.com"
-        },
-        "user": {
-            "id": base64.b64encode(session['email'].encode()).decode(),
-            "name": session['email'],
-            "displayName": session['email']
-        },
-        "pubKeyCredParams": [{"type": "public-key", "alg": -7}],
-        "authenticatorSelection": {
-            "userVerification": "preferred",
-            "authenticatorAttachment": "platform"  # Biometric
-        },
-        "timeout": 60000,
-        "attestation": "none"
-    })
-
-
+if __name__ == '__main__':
+    app.run(debug=True)
