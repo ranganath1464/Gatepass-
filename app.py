@@ -487,14 +487,15 @@ def qr_status(req_id):
 @app.route('/generate-challenge')
 def generate_challenge():
     import base64, os
+
     challenge = os.urandom(32)
     session['challenge'] = base64.b64encode(challenge).decode('utf-8')
 
-    dummy_credential_id = base64.b64encode(os.urandom(16)).decode('utf-8')  # You can store actual credential for real users
+    dummy_credential_id = base64.b64encode(os.urandom(16)).decode('utf-8')
 
     return jsonify({
         "challenge": session['challenge'],
-        "rpId": "gatepass-system-gmz7.onrender.com",
+        "rpId": "gatepass-system-gmz7.onrender.com",  # Your domain
         "timeout": 60000,
         "userVerification": "preferred",
         "allowCredentials": [{
@@ -502,6 +503,7 @@ def generate_challenge():
             "type": "public-key"
         }]
     })
+
 
 @app.route('/fingerprint-auth', methods=['POST'])
 def fingerprint_auth():
