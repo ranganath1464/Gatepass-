@@ -488,10 +488,22 @@ def qr_status(req_id):
 def generate_challenge():
     import base64, os
 
-    # Dummy email (in real use, extract from frontend or session)
-    credential_id = session.get('credential_id')  # Stored during registration
-    if not credential_id:
-        return jsonify({"error": "No fingerprint credentials found. Please register first."})
+    email = session.get('email')
+    if not email:
+        return jsonify({"error": "Not logged in"}), 403
+
+    conn = get_connection()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT credential_id FROM students WHERE email = %s", (email,))
+    result = cur.fetchone()
+    cur.close()
+    conn.close()
+
+    if not result or not result['credential_id']:
+        return jsonify({"error": "No fingerprint credentials found. Please register first."}), 400
+
+    credential_id = result['credential_id']
+    session['credential_id'] = credential_id  # optional caching
 
     challenge = os.urandom(32)
     session['challenge'] = base64.b64encode(challenge).decode('utf-8')
@@ -506,7 +518,6 @@ def generate_challenge():
             "type": "public-key"
         }]
     })
-
 
 
 @app.route('/fingerprint-auth', methods=['POST'])
@@ -561,13 +572,29 @@ def webauthn_register_options():
 @app.route('/webauthn/register-complete', methods=['POST'])
 def webauthn_register_complete():
     data = request.json
-    # You'd verify the attestation response here in a real setup
-
-    # ✅ Simulate storing credential (in DB)
     credential_id = data['id']
-    session['credential_id'] = credential_id  # Simulate storage
+
+    session['credential_id'] = credential_id  # for current session
+
+    # ✅ Store in database permanently
+    email = session.get('email')
+    if not email:
+        return jsonify({"error": "User not authenticated"}), 400
+
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("UPDATE students SET credential_id = %s WHERE email = %s", (credential_id, email))
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        cur.close()
+        conn.close()
 
     return jsonify({ "success": True })
+
 @app.route('/register-passkey-options')
 def register_passkey_options():
     import os, base64
