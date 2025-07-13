@@ -1,126 +1,59 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Setup Fingerprint | Gatepass</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    body {
-      font-family: 'Poppins', sans-serif;
-      background: #f0f4f8;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      margin: 0;
-    }
-
-    .container {
-      background: white;
-      padding: 30px;
-      border-radius: 10px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.1);
-      text-align: center;
-      max-width: 400px;
-      width: 90%;
-    }
-
-    h2 {
-      margin-bottom: 10px;
-      color: #333;
-    }
-
-    p {
-      color: #666;
-      margin-bottom: 20px;
-    }
-
-    .btn {
-      background: #0047AB;
-      color: white;
-      border: none;
-      padding: 12px 20px;
-      margin: 10px;
-      border-radius: 6px;
-      font-size: 16px;
-      cursor: pointer;
-    }
-
-    .btn:hover {
-      background: #003a91;
-    }
-
-    .skip-link {
-      display: inline-block;
-      margin-top: 10px;
-      font-size: 14px;
-      color: #0047AB;
-      text-decoration: underline;
-      cursor: pointer;
-    }
-  </style>
-</head>
-<body>
-
-<div class="container">
-  <h2>Enable Biometric Login</h2>
-  <p>To enable fingerprint login on your device, click below:</p>
-
-  <button class="btn" id="startFingerprint">Setup Fingerprint</button>
-
-  <p class="skip-link" onclick="skipFingerprint()">Skip & Continue to Dashboard</p>
-</div>
-
 <script>
   async function arrayBufferToBase64(buffer) {
     let binary = '';
     const bytes = new Uint8Array(buffer);
-    const len = bytes.byteLength;
-    for (let i = 0; i < len; i++) {
+    for (let i = 0; i < bytes.byteLength; i++) {
       binary += String.fromCharCode(bytes[i]);
     }
-    return window.btoa(binary);
+    return btoa(binary);
+  }
+
+  function base64ToArrayBuffer(base64) {
+    const binaryString = window.atob(base64);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes.buffer;
   }
 
   document.getElementById('startFingerprint').addEventListener('click', async () => {
     try {
-      const res = await fetch('/generate-challenge');
-      const publicKey = await res.json();
+      const res = await fetch('/register-passkey-options');
+      const options = await res.json();
 
-      publicKey.challenge = Uint8Array.from(atob(publicKey.challenge), c => c.charCodeAt(0)).buffer;
-      publicKey.allowCredentials = publicKey.allowCredentials.map(cred => ({
-        ...cred,
-        id: Uint8Array.from(atob(cred.id), c => c.charCodeAt(0)).buffer
-      }));
+      // Convert options to correct format
+      options.challenge = base64ToArrayBuffer(options.challenge);
+      options.user.id = base64ToArrayBuffer(options.user.id);
 
-      const assertion = await navigator.credentials.get({ publicKey });
+      const cred = await navigator.credentials.create({ publicKey: options });
 
-      const response = {
-        id: assertion.id,
-        rawId: await arrayBufferToBase64(assertion.rawId),
-        type: assertion.type,
+      const credentialData = {
+        id: cred.id,
+        rawId: await arrayBufferToBase64(cred.rawId),
+        type: cred.type,
         response: {
-          clientDataJSON: await arrayBufferToBase64(assertion.response.clientDataJSON),
-          authenticatorData: await arrayBufferToBase64(assertion.response.authenticatorData),
-          signature: await arrayBufferToBase64(assertion.response.signature),
-          userHandle: assertion.response.userHandle ? await arrayBufferToBase64(assertion.response.userHandle) : null
+          clientDataJSON: await arrayBufferToBase64(cred.response.clientDataJSON),
+          attestationObject: await arrayBufferToBase64(cred.response.attestationObject)
         }
       };
 
-      const verifyRes = await fetch('/fingerprint-auth', {
+      const result = await fetch('/webauthn/register-complete', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(response)
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(credentialData)
       });
 
-      if (verifyRes.ok) {
+      if (result.ok) {
+        alert("Fingerprint registration successful!");
         window.location.href = "/student/dashboard";
       } else {
-        alert("Fingerprint verification failed.");
+        alert("Fingerprint registration failed.");
       }
     } catch (err) {
       console.error(err);
-      alert("Biometric not supported or cancelled.");
+      alert("Biometric not supported, or user cancelled.");
     }
   });
 
@@ -128,6 +61,3 @@
     window.location.href = "/student/dashboard";
   }
 </script>
-
-</body>
-</html>
