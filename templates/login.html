@@ -256,7 +256,13 @@
     <!-- Fingerprint Login -->
     <div style="text-align:center; margin-top: 20px;">
       <p>or</p>
-      <button class="btn" id="biometricLogin" type="button">Login with Fingerprint</button>
+     <div class="form-group">
+  <label for="fingerEmail">Email for Fingerprint Login</label>
+  <input type="email" id="fingerEmail" placeholder="Enter your email" required>
+</div>
+
+<button class="btn" id="biometricLogin" type="button">Login with Fingerprint</button>
+
     </div>
   </div>
 
@@ -283,9 +289,25 @@
     return btoa(binary);
   }
 
+  function base64ToArrayBuffer(base64) {
+    const binaryString = window.atob(base64);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes.buffer;
+  }
+
   document.getElementById('biometricLogin').addEventListener('click', async () => {
+    const email = document.getElementById('fingerEmail').value.trim();
+    if (!email) {
+      alert("Please enter your email to use fingerprint login.");
+      return;
+    }
+
     try {
-      const res = await fetch('/generate-challenge');
+      const res = await fetch(`/generate-challenge?email=${encodeURIComponent(email)}`);
       const publicKey = await res.json();
 
       if (publicKey.error) {
@@ -293,10 +315,10 @@
         return;
       }
 
-      publicKey.challenge = Uint8Array.from(atob(publicKey.challenge), c => c.charCodeAt(0));
+      publicKey.challenge = base64ToArrayBuffer(publicKey.challenge);
       publicKey.allowCredentials = publicKey.allowCredentials.map(cred => ({
         ...cred,
-        id: Uint8Array.from(atob(cred.id), c => c.charCodeAt(0))
+        id: base64ToArrayBuffer(cred.id)
       }));
 
       const assertion = await navigator.credentials.get({ publicKey });
@@ -305,6 +327,7 @@
         id: assertion.id,
         rawId: await arrayBufferToBase64(assertion.rawId),
         type: assertion.type,
+        email: email,
         response: {
           clientDataJSON: await arrayBufferToBase64(assertion.response.clientDataJSON),
           authenticatorData: await arrayBufferToBase64(assertion.response.authenticatorData),
@@ -319,16 +342,17 @@
         body: JSON.stringify(response)
       });
 
-      if (verifyRes.ok) {
-        const redirectURL = await verifyRes.json();
-        window.location.href = redirectURL.redirect || '/student/dashboard';
+      const result = await verifyRes.json();
+
+      if (verifyRes.ok && result.redirect) {
+        window.location.href = result.redirect;
       } else {
-        alert("Biometric authentication failed.");
+        alert(result.error || "Biometric authentication failed.");
       }
 
     } catch (err) {
       console.error(err);
-      alert("Biometric login is not supported or failed.");
+      alert("Biometric login failed or not supported.");
     }
   });
 </script>
