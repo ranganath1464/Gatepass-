@@ -269,7 +269,13 @@
 <script>
 document.getElementById('biometricLogin').addEventListener('click', async () => {
   try {
-    const emailInput = document.querySelector('input[name="email"]').value.trim();
+   const emailField = document.querySelector('input[name="email"]');
+if (!emailField || !emailField.value.trim()) {
+  alert("Please enter your email before using fingerprint login.");
+  return;
+}
+const emailInput = emailField.value.trim();
+
     if (!emailInput) {
       alert("Please enter your email before using fingerprint login.");
       return;
