@@ -2,41 +2,45 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Setup Fingerprint Login</title>
-    <script>
-        async function setupFingerprint() {
-            const challengeResponse = await fetch("/generate-challenge");
-            const options = await challengeResponse.json();
-
-            // Convert base64 to Uint8Array
-            options.challenge = Uint8Array.from(atob(options.challenge), c => c.charCodeAt(0));
-            options.allowCredentials = options.allowCredentials.map(cred => ({
-                ...cred,
-                id: Uint8Array.from(atob(cred.id), c => c.charCodeAt(0))
-            }));
-
-            try {
-                const assertion = await navigator.credentials.get({ publicKey: options });
-                // Simulate login (no actual verification)
-                const loginResp = await fetch("/fingerprint-auth", { method: "POST" });
-                const result = await loginResp.json();
-                if (result.success) {
-                    window.location.href = "/student/dashboard";
-                } else {
-                    alert("Fingerprint authentication failed.");
-                }
-            } catch (err) {
-                alert("Error during fingerprint authentication: " + err);
-            }
-        }
-
-        window.onload = function () {
-            setupFingerprint();
-        };
-    </script>
+    <title>Fingerprint Setup</title>
 </head>
 <body>
-    <h2>Setting up your fingerprint login...</h2>
-    <p>Please scan your fingerprint or complete biometric login when prompted.</p>
+    <h2>Fingerprint Setup</h2>
+    <p>This device will be linked to your fingerprint for future logins.</p>
+
+    <button onclick="registerFingerprint()">Setup Fingerprint</button>
+
+    <script>
+        async function registerFingerprint() {
+            try {
+                // Get challenge and credential options from server
+                const res = await fetch("/generate-challenge");
+                const options = await res.json();
+
+                // Decode base64 challenge and credential ID
+                options.challenge = Uint8Array.from(atob(options.challenge), c => c.charCodeAt(0));
+                options.allowCredentials = options.allowCredentials.map(cred => ({
+                    id: Uint8Array.from(atob(cred.id), c => c.charCodeAt(0)),
+                    type: cred.type
+                }));
+
+                // Prompt fingerprint scan
+                const credential = await navigator.credentials.get({
+                    publicKey: options
+                });
+
+                if (credential) {
+                    alert("✅ Fingerprint setup complete!");
+                    // Redirect to dashboard (or save credential on server if needed)
+                    window.location.href = "/student/dashboard";
+                } else {
+                    alert("❌ Fingerprint setup cancelled.");
+                }
+            } catch (err) {
+                console.error("Fingerprint setup failed:", err);
+                alert("❌ Failed to setup fingerprint: " + err.message);
+            }
+        }
+    </script>
 </body>
 </html>
