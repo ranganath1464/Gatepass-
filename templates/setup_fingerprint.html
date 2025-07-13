@@ -1,46 +1,31 @@
-<!-- templates/setup_fingerprint.html -->
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Fingerprint Setup</title>
-</head>
-<body>
-    <h2>Fingerprint Setup</h2>
-    <p>This device will be linked to your fingerprint for future logins.</p>
+<script>
+async function registerPasskey() {
+    const res = await fetch("/webauthn/register-options");
+    const options = await res.json();
 
-    <button onclick="registerFingerprint()">Setup Fingerprint</button>
+    // Convert base64 to Uint8Array
+    options.challenge = Uint8Array.from(atob(options.challenge), c => c.charCodeAt(0));
+    options.user.id = Uint8Array.from(atob(options.user.id), c => c.charCodeAt(0));
 
-    <script>
-        async function registerFingerprint() {
-            try {
-                // Get challenge and credential options from server
-                const res = await fetch("/generate-challenge");
-                const options = await res.json();
+    const credential = await navigator.credentials.create({ publicKey: options });
 
-                // Decode base64 challenge and credential ID
-                options.challenge = Uint8Array.from(atob(options.challenge), c => c.charCodeAt(0));
-                options.allowCredentials = options.allowCredentials.map(cred => ({
-                    id: Uint8Array.from(atob(cred.id), c => c.charCodeAt(0)),
-                    type: cred.type
-                }));
-
-                // Prompt fingerprint scan
-                const credential = await navigator.credentials.get({
-                    publicKey: options
-                });
-
-                if (credential) {
-                    alert("✅ Fingerprint setup complete!");
-                    // Redirect to dashboard (or save credential on server if needed)
-                    window.location.href = "/student/dashboard";
-                } else {
-                    alert("❌ Fingerprint setup cancelled.");
-                }
-            } catch (err) {
-                console.error("Fingerprint setup failed:", err);
-                alert("❌ Failed to setup fingerprint: " + err.message);
-            }
+    const credentialData = {
+        id: credential.id,
+        rawId: btoa(String.fromCharCode(...new Uint8Array(credential.rawId))),
+        type: credential.type,
+        response: {
+            attestationObject: btoa(String.fromCharCode(...new Uint8Array(credential.response.attestationObject))),
+            clientDataJSON: btoa(String.fromCharCode(...new Uint8Array(credential.response.clientDataJSON)))
         }
-    </script>
-</body>
-</html>
+    };
+
+    await fetch('/webauthn/register-complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(credentialData)
+    });
+
+    alert("✅ Passkey registration complete!");
+    window.location.href = "/student/dashboard";
+}
+</script>
