@@ -103,15 +103,22 @@ def verify_otp():
                     user['name'],
                     user['student_id'],
                     user['branch'],
-                    user['year'],               # NEW
-                    user['semester'],           # NEW
+                    user['year'],
+                    user['semester'],
                     user['email'],
                     user['mobile'],
                     user['password']
                 ))
                 conn.commit()
-                flash("Registration successful! Please login.")
-                return redirect(url_for('login'))
+
+                # Store email in session for fingerprint setup
+                session['email'] = user['email']
+                session['role'] = 'student'
+                session['branch'] = user['branch']
+
+                # ✅ Redirect to fingerprint setup
+                return redirect(url_for('setup_fingerprint'))
+
             except Exception as e:
                 conn.rollback()
                 flash("Error saving to database: " + str(e))
@@ -506,4 +513,12 @@ def fingerprint_auth():
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"error": str(e)}), 400
+
+@app.route('/setup-fingerprint')
+def setup_fingerprint():
+    if 'email' not in session:
+        return redirect(url_for('login'))
+
+    return render_template("setup_fingerprint.html")
+
 
